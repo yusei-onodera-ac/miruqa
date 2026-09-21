@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title th:text="'新規登録 | ' + ${productName}">新規登録 | MiruQA</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="v6">
+  <div class="v6-shell narrow">
+    <p class="v6-title" style="font-family:var(--v6-mono)" th:text="${productName}">MiruQA</p>
+    <p class="v6-sub">新規登録(組織が自動的に作成されます)</p>
+
+    <div class="v6-panel">
+      <div th:if="${error}" class="v6-error" th:text="${error}"></div>
+      <!-- Thymeleaf標準のth:field(SpringInputGeneralFieldTagProcessor)がこの環境の
+           Spring 7系との組み合わせで例外を起こしたため、素朴なth:value+name属性で組む
+           (Spring Bootのバージョン刷新に伴う実測の回避策。他画面と同じ方針) -->
+      <form method="post" th:action="@{/signup}">
+        <div class="v6-field">
+          <label for="email">メールアドレス</label>
+          <input type="email" id="email" name="email" th:value="${form.email}" required autofocus>
+        </div>
+        <div class="v6-field">
+          <label for="password">パスワード(8文字以上)</label>
+          <input type="password" id="password" name="password" minlength="8" required>
+        </div>
+        <div class="v6-field">
+          <label for="displayName">お名前</label>
+          <input type="text" id="displayName" name="displayName" th:value="${form.displayName}">
+        </div>
+        <div class="v6-field">
+          <label for="organizationName">組織名</label>
+          <input type="text" id="organizationName" name="organizationName" th:value="${form.organizationName}" placeholder="例: 株式会社サンプル">
+        </div>
+        <div class="v6-field">
+          <label style="display:flex; gap:8px; align-items:flex-start; font-weight:400">
+            <input type="checkbox" name="termsAccepted" value="true" required style="margin-top:3px">
+            <span>利用規約・プライバシーポリシー(下書き。【要法務確認】)に同意します。診断対象への
+              テスト権限の確認は、実行のたびに別途求められます。</span>
+          </label>
+        </div>
+        <button type="submit" class="v6-btn" style="width:100%">登録する</button>
+      </form>
+    </div>
+    <p class="v6-sub">すでにアカウントをお持ちの方は <a th:href="@{/login}">ログイン</a></p>
+  </div>
+</body>
+</html>

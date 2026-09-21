@@ -1,0 +1,37 @@
+{
+ "benchId": "bench-20260921T053000Z-session-affinity",
+ "kind": "session-affinity-on-off",
+ "note": "orcarouter/site-inspectorのセッション固定(コンソール設定)ON/OFFの比較。同一の共有項目書(p-f6458088、10件)、config=named-routerのみ。OFFは判断16の実行(事後確認でOFFと判明)、ONは開発者が同日中にコンソールでONへ切り替えた直後に1回だけ実行(詳細はdocs/design-decisions.md判断22参照)。",
+ "off": {
+  "runId": "run-5b4e3d17d7",
+  "costUsdSettled": 0.375824,
+  "durationSec": 341.0,
+  "avgLatencyMs": 4254.9,
+  "callCount": 72,
+  "detection": {"l1l3": "6/8", "l4": "3/6"},
+  "falsePositives": 0,
+  "agreementWithDirectBaseline": 0.9,
+  "cachedTokens": "計装前のため未取得(nullのみ)"
+ },
+ "on": {
+  "runId": "run-432a8c9c7d",
+  "costUsdSettled": 0.386824,
+  "durationSec": 403.5,
+  "avgLatencyMs": 5021.5,
+  "callCount": 74,
+  "detection": {"l1l3": "6/8", "l4": "3/6"},
+  "falsePositives": 1,
+  "agreementWithDirectBaseline": 1.0,
+  "cachedTokensSum": 58800,
+  "promptTokensSum": 228889,
+  "cachedTokenRatio": 0.257
+ },
+ "diff": {
+  "costPct": "+2.9%",
+  "durationPct": "+18.3%",
+  "avgLatencyPct": "+18.0%",
+  "resolvedModelDistribution": "ON/OFFとも100%google/gemini-3.5-flash(簡易プールへの分散なし。差なし)",
+  "sessionTierHeader": "ON/OFFとも常にnull(この実験でも観測できず)"
+ },
+ "conclusion": "1回ずつの比較のため統計的な結論は出せないが、実測ではセッション固定ONの方がコスト・所要時間とも数%〜2割ほど高かった。TestResultの一致率(直指定Aとの比較)はONが100%・OFFが90%だったが、判断16で確認済みの通りTC-006(価格改ざん)はエージェント実行自体のrun-to-runのばらつきがあるテスト項目のため、セッション固定の効果と断定はしない。プロンプトキャッシュ(usage.prompt_tokens_details.cached_tokens)はON時に約25.7%のヒット率を観測したが、OFF側は計装前のため比較対象が無く、ON/OFF差としては報告できない(正直な限界として記録)。"
+}

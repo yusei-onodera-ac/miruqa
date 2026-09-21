@@ -1,0 +1,1775 @@
+{
+ "runId": "run-9409d6a593",
+ "startedAt": "2026-09-20T16:50:58.427836+00:00",
+ "target": "http://127.0.0.1:8765/",
+ "goal": "商品をカートに入れて決済画面まで進める",
+ "persona": "it-weak-60s",
+ "mode": "inspect",
+ "status": "completed",
+ "config": {
+  "router": "google/gemini-3.5-flash",
+  "faultInjection": false
+ },
+ "metrics": {
+  "steps": 16,
+  "humanInterventions": 0,
+  "durationSec": 55.8,
+  "costUsd": {
+   "total": 0.101592,
+   "byLens": {},
+   "byModel": {
+    "gemini-3.5-flash": 0.101592
+   }
+  },
+  "recoveries": {
+   "retries": 0,
+   "fallbacks": 0,
+   "degraded": 0,
+   "resumed": 0
+  }
+ },
+ "steps": [
+  {
+   "n": 1,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 1
+   },
+   "verdict": null,
+   "observation": {
+    "url": "http://127.0.0.1:8765/",
+    "title": "トップ | サンプルストア",
+    "screenshot": null
+   },
+   "llmCalls": [
+    {
+     "requestId": "202609201650599310677578268d9d6PpxQvreS",
+     "router": "google/gemini-3.5-flash",
+     "resolvedModel": "gemini-3.5-flash",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 4676,
+     "costUsdInline": 0.006602,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 2
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/products/1",
+    "title": "商品詳細 | サンプルストア",
+    "screenshot": "run-9409d6a593/step-001.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "202609201651043343253328268d9d6k8jgWMIq",
+     "router": "google/gemini-3.5-flash",
+     "resolvedModel": "gemini-3.5-flash",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 2602,
+     "costUsdInline": 0.005756,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 3
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/products/1",
+    "title": "商品詳細 | サンプルストア",
+    "screenshot": "run-9409d6a593/step-001.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "202609201651079223534208268d9d6NyE4xJu3",
+     "router": "google/gemini-3.5-flash",
+     "resolvedModel": "gemini-3.5-flash",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 4556,
+     "costUsdInline": 0.007276,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 4
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/cart",
+    "title": "カート | サンプルストア",
+    "screenshot": "run-9409d6a593/step-002.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "202609201651124845708128268d9d6vfpMoDZb",
+     "router": "google/gemini-3.5-flash",
+     "resolvedModel": "gemini-3.5-flash",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 1540,
+     "costUsdInline": 0.003628,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 5,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 5
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/checkout",
+    "title": "お支払い確認 | サンプルストア",
+    "screenshot": "run-9409d6a593/step-003.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "202609201651146956678078268d9d6HvwJwu6i",
+     "router": "google/gemini-3.5-flash",
+     "resolvedModel": "gemini-3.5-flash",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 1547,
+     "costUsdInline": 0.005012,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 6,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 6
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/checkout",
+    "title": "お支払い確認 | サンプルストア",
+    "screenshot": "run-9409d6a593/step-003.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "20260920165117474233188268d9d6ff2IxeVf",
+     "router": "google/gemini-3.5-flash",
+     "resolvedModel": "gemini-3.5-flash",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 2946,
+     "costUsdInline": 0.00731,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 7,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 7
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/checkout",
+    "title": "お支払い確認 | サンプルストア",
+    "screenshot": "run-9409d6a593/step-003.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "2026092016512011800798268d9d6UhEbBIhh",
+     "router": "google/gemini-3.5-flash",
+     "resolvedModel": "gemini-3.5-flash",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 2603,
+     "costUsdInline": 0.007656,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 8,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 8
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/checkout",
+    "title": "お支払い確認 | サンプルストア",
+    "screenshot": "run-9409d6a593/step-003.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "202609201651226115371758268d9d63F0NKxCz",
+     "router": "google/gemini-3.5-flash",
+     "resolvedModel": "gemini-3.5-flash",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 1734,
+     "costUsdInline": 0.005992,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 9,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 9
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/contact",
+    "title": "お問い合わせ | サンプルストア",
+    "screenshot": "run-9409d6a593/step-004.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "202609201651243595998838268d9d6hDf3aRfJ",
+     "router": "google/gemini-3.5-flash",
+     "resolvedModel": "gemini-3.5-flash",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 1520,
+     "costUsdInline": 0.006358,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 10,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 10
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/contact",
+    "title": "お問い合わせ | サンプルストア",
+    "screenshot": "run-9409d6a593/step-004.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "202609201651265957785018268d9d6AvRkec6J",
+     "router": "google/gemini-3.5-flash",
+     "resolvedModel": "gemini-3.5-flash",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 3898,
+     "costUsdInline": 0.007666,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 11,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 11
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/privacy",
+    "title": "プライバシーポリシー | サンプルストア",
+    "screenshot": "run-9409d6a593/step-005.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "202609201651305078102828268d9d6I4xjuk1w",
+     "router": "google/gemini-3.5-flash",
+     "resolvedModel": "gemini-3.5-flash",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 2174,
+     "costUsdInline": 0.004486,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 12,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 12
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/products/1",
+    "title": "商品詳細 | サンプルストア",
+    "screenshot": "run-9409d6a593/step-006.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "202609201651333893395208268d9d6ukYK8J2R",
+     "router": "google/gemini-3.5-flash",
+     "resolvedModel": "gemini-3.5-flash",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 4385,
+     "costUsdInline": 0.006076,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 13,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 13
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/products/1",
+    "title": "商品詳細 | サンプルストア",
+    "screenshot": "run-9409d6a593/step-006.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "202609201651387377538848268d9d6hlyZRXYf",
+     "router": "google/gemini-3.5-flash",
+     "resolvedModel": "gemini-3.5-flash",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 4979,
+     "costUsdInline": 0.009368,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 14,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 14
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/cart",
+    "title": "カート | サンプルストア",
+    "screenshot": "run-9409d6a593/step-007.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "202609201651437173517518268d9d668OkkpcU",
+     "router": "google/gemini-3.5-flash",
+     "resolvedModel": "gemini-3.5-flash",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 3161,
+     "costUsdInline": 0.005336,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 15,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 15
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/checkout",
+    "title": "お支払い確認 | サンプルストア",
+    "screenshot": "run-9409d6a593/step-008.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "202609201651474287780198268d9d66nZeyWEW",
+     "router": "google/gemini-3.5-flash",
+     "resolvedModel": "gemini-3.5-flash",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 2463,
+     "costUsdInline": 0.00553,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 16,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 16
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/checkout",
+    "title": "お支払い確認 | サンプルストア",
+    "screenshot": "run-9409d6a593/step-008.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "202609201651508491473958268d9d6KIpJsjjF",
+     "router": "google/gemini-3.5-flash",
+     "resolvedModel": "gemini-3.5-flash",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 3404,
+     "costUsdInline": 0.00754,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  }
+ ],
+ "findings": [
+  {
+   "lens": "L1",
+   "severity": "High",
+   "confidence": "confirmed",
+   "title": "送料の表示が特定商取引法ページと決済画面で一致しない",
+   "detail": "特定商取引法ページ(http://127.0.0.1:8765/legal/tokushoho)では送料「800円（全国一律）」、決済画面(http://127.0.0.1:8765/checkout)では送料「無料」と表示されており、金額が一致しません(横断指摘)。",
+   "url": "http://127.0.0.1:8765/checkout",
+   "evidence": [
+    {
+     "type": "response_excerpt",
+     "ref": "http://127.0.0.1:8765/legal/tokushoho 送料欄: 800円（全国一律）"
+    },
+    {
+     "type": "response_excerpt",
+     "ref": "http://127.0.0.1:8765/checkout 送料欄: 無料"
+    }
+   ],
+   "repro": [
+    "http://127.0.0.1:8765/legal/tokushoho を開き送料欄を確認する",
+    "http://127.0.0.1:8765/checkout を開き送料欄を確認する",
+    "表示金額が異なることを確認する"
+   ],
+   "fix": "特定商取引法ページと決済画面の送料表示を同じ値に統一する。",
+   "silentChurnRisk": true,
+   "crossLens": [],
+   "id": "f-001"
+  },
+  {
+   "lens": "L1",
+   "testId": null,
+   "severity": "Low",
+   "confidence": "needs_review",
+   "title": "トップページの「送料無料」が「送量無料」と誤記されている",
+   "detail": "トップページの「本日のおすすめ」欄において、「送料無料」とすべきところが「送量無料」と誤って表記されています。信頼性を損ねる可能性があるため、修正が必要です。",
+   "url": "http://127.0.0.1:8765/",
+   "evidence": [],
+   "repro": [
+    "トップページ(http://127.0.0.1:8765/)にアクセスする",
+    "「本日のおすすめ: 送量無料キャンペーン実施中！」というテキストを確認する"
+   ],
+   "fix": "「送量無料」を「送料無料」に修正する。",
+   "silentChurnRisk": true,
+   "crossLens": [],
+   "id": "f-002"
+  },
+  {
+   "lens": "L1",
+   "testId": null,
+   "severity": "Med",
+   "confidence": "needs_review",
+   "title": "トップページの送料無料キャンペーン表示と商品詳細ページの「送料別」表示が矛盾している",
+   "detail": "トップページでは「本日のおすすめ: 送量無料キャンペーン実施中！」と表示されているにもかかわらず、おすすめ商品の詳細ページ(http://127.0.0.1:8765/products/1)では「¥3,980（税込・送料別）」と表示されており、送料が無料なのか有料なのかが不整合で分かりにくいです。",
+   "url": "http://127.0.0.1:8765/products/1",
+   "evidence": [
+    {
+     "type": "screenshot",
+     "ref": "run-9409d6a593/step-001.jpg"
+    }
+   ],
+   "repro": [
+    "トップページで「本日のおすすめ: 送量無料キャンペーン実施中！」を確認する",
+    "「商品ページへ」をクリックして商品詳細ページに遷移する",
+    "価格表示が「¥3,980（税込・送料別）」となっていることを確認する"
+   ],
+   "fix": "キャンペーン中であれば商品詳細ページでも「送料無料」と表示するか、あるいは送料別の表記を「送料無料キャンペーン対象」などに変更する。",
+   "silentChurnRisk": true,
+   "crossLens": [],
+   "id": "f-003"
+  },
+  {
+   "lens": "L1",
+   "testId": null,
+   "severity": "High",
+   "confidence": "needs_review",
+   "title": "お支払い確認画面で、商品金額と送料の合計が合わず、過大に請求されている",
+   "detail": "お支払い内容の確認画面(http://127.0.0.1:8765/checkout)において、商品の金額が「¥3,980」、送料が「無料」と表示されているにもかかわらず、商品合計が「¥4,980」と計算が合わない金額で表示されています。1,000円多く請求される形になっており、ユーザーに不利益を与える重大な問題です。",
+   "url": "http://127.0.0.1:8765/checkout",
+   "evidence": [
+    {
+     "type": "screenshot",
+     "ref": "run-9409d6a593/step-003.jpg"
+    }
+   ],
+   "repro": [
+    "商品をカートに入れて「次へ」をクリックし、お支払い内容の確認画面に進む",
+    "商品の金額「¥3,980」、送料「無料」に対し、商品合計が「¥4,980」と表示されていることを確認する"
+   ],
+   "fix": "商品合計の計算ロジックを修正し、商品金額と送料の合計が正しく反映されるようにする（この場合は ¥3,980 にする）。",
+   "silentChurnRisk": true,
+   "crossLens": [],
+   "id": "f-004"
+  },
+  {
+   "lens": "L1",
+   "testId": null,
+   "severity": "Med",
+   "confidence": "needs_review",
+   "title": "特定商取引法に基づく返品・キャンセル特約の事前表示が不十分",
+   "detail": "お支払い内容の確認画面において、「キャンセル・返品についての注意事項は、注文確定後にメールでご案内する場合があります。」と記載されています。特定商取引法に基づき、返品やキャンセルに関する特約（返品の可否、条件、送料負担など）は、注文確定前の確認画面などで明確に表示する必要があります。注文確定後にメールで案内する可能性があるという表記は、法令遵守の観点から不適切です。",
+   "url": "http://127.0.0.1:8765/checkout",
+   "evidence": [
+    {
+     "type": "screenshot",
+     "ref": "run-9409d6a593/step-003.jpg"
+    }
+   ],
+   "repro": [
+    "お支払い内容の確認画面(http://127.0.0.1:8765/checkout)にアクセスする",
+    "「キャンセル・返品についての注意事項は、注文確定後にメールでご案内する場合があります。」という記載を確認する"
+   ],
+   "fix": "注文確定前の確認画面に、キャンセル・返品に関する特約（返品特約）を具体的に明記するか、詳細な返品ポリシーへのリンクを設置して事前に確認できるようにする。",
+   "silentChurnRisk": false,
+   "crossLens": [],
+   "id": "f-005"
+  },
+  {
+   "lens": "L1",
+   "testId": null,
+   "severity": "Low",
+   "confidence": "needs_review",
+   "title": "お問い合わせフォームの入力欄にlabel要素が適切に関連付けられていない（アクセシビリティの問題）",
+   "detail": "お問い合わせページ(http://127.0.0.1:8765/contact)において、各入力欄（お名前、メールアドレス、電話番号、お問い合わせ内容）に <label> 要素が適切に関連付けられておらず、操作できる要素一覧で label=\"(なし)\" となっています。これにより、スクリーンリーダーなどの支援技術を利用するユーザーが、どの入力欄に何を記入すべきか理解しづらく、アクセシビリティ上の問題があります。また、入力欄をクリックしにくくなる原因にもなります。",
+   "url": "http://127.0.0.1:8765/contact",
+   "evidence": [
+    {
+     "type": "screenshot",
+     "ref": "run-9409d6a593/step-004.jpg"
+    }
+   ],
+   "repro": [
+    "お問い合わせページ(http://127.0.0.1:8765/contact)にアクセスする",
+    "各入力欄のHTML構造を確認し、<label>タグが正しく関連付けられているか確認する"
+   ],
+   "fix": "各入力欄に対して、対応するラベルテキストを <label for=\"...\"> で紐付けるか、<label> 要素で入力欄を囲むように修正します。",
+   "silentChurnRisk": false,
+   "crossLens": [],
+   "id": "f-006"
+  },
+  {
+   "lens": "L1",
+   "testId": null,
+   "severity": "Low",
+   "confidence": "needs_review",
+   "title": "ヘッダーの「商品」リンクをクリックすると、一覧ではなく直接特定の商品詳細ページに遷移する",
+   "detail": "ヘッダーの「商品」リンクをクリックした際、商品一覧ページではなく直接特定の商品詳細ページ（http://127.0.0.1:8765/products/1）に遷移します。ユーザーは他の商品があるかもしれないと期待して「商品」をクリックするため、一覧がない、あるいは直接特定の商品に飛ばされるのは不自然で、導線として分かりにくいです。",
+   "url": "http://127.0.0.1:8765/products/1",
+   "evidence": [
+    {
+     "type": "screenshot",
+     "ref": "run-9409d6a593/step-006.jpg"
+    }
+   ],
+   "repro": [
+    "ヘッダーの「商品」リンクをクリックする",
+    "商品一覧ではなく、直接「USBメモリ 32GB シルバー」の商品詳細ページに遷移することを確認する"
+   ],
+   "fix": "「商品」リンクの遷移先を商品一覧ページにするか、商品が1つしかない場合はリンク名を「おすすめ商品」など実態に合わせた名称に変更する。",
+   "silentChurnRisk": true,
+   "crossLens": [],
+   "id": "f-007"
+  }
+ ],
+ "testPlans": [],
+ "outcome": "success",
+ "summary": "商品をカートに入れ、決済画面（お支払い内容の確認画面）まで進めることができました。\n点検の過程で、以下の問題点を発見し報告しました。\n1. トップページの「送料無料」が「送量無料」と誤記されている。\n2. トップページの送料無料キャンペーン表示と商品詳細ページの「送料別」表示が矛盾している。\n3. お支払い確認画面で、商品金額（¥3,980）と送料（無料）の合計が合わず、商品合計が「¥4,980」と過大に請求されている。\n4. 特定商取引法に基づく返品・キャンセル特約の事前表示が不十分（注文確定後にメールで案内する可能性があるという表記）。\n5. お問い合わせフォームの入力欄にlabel要素が適切に関連付けられていない。\n6. ヘッダーの「商品」リンクをクリックすると、一覧ではなく直接特定の商品詳細ページに遷移する。",
+ "networkLog": [
+  {
+   "url": "http://127.0.0.1:8765/products/1",
+   "method": "GET",
+   "status": 200,
+   "resourceType": "document",
+   "t": 1789923067.337037
+  },
+  {
+   "url": "http://127.0.0.1:8765/cart/add",
+   "method": "POST",
+   "status": 302,
+   "resourceType": "document",
+   "t": 1789923074.114089
+  },
+  {
+   "url": "http://127.0.0.1:8765/cart",
+   "method": "GET",
+   "status": 200,
+   "resourceType": "document",
+   "t": 1789923074.1158888
+  },
+  {
+   "url": "http://127.0.0.1:8765/checkout",
+   "method": "GET",
+   "status": 200,
+   "resourceType": "document",
+   "t": 1789923076.46993
+  },
+  {
+   "url": "http://127.0.0.1:8765/contact",
+   "method": "GET",
+   "status": 200,
+   "resourceType": "document",
+   "t": 1789923086.036279
+  },
+  {
+   "url": "http://127.0.0.1:8765/privacy",
+   "method": "GET",
+   "status": 200,
+   "resourceType": "document",
+   "t": 1789923092.80144
+  },
+  {
+   "url": "http://127.0.0.1:8765/products/1",
+   "method": "GET",
+   "status": 200,
+   "resourceType": "document",
+   "t": 1789923098.150796
+  },
+  {
+   "url": "http://127.0.0.1:8765/cart",
+   "method": "GET",
+   "status": 200,
+   "resourceType": "document",
+   "t": 1789923106.844258
+  },
+  {
+   "url": "http://127.0.0.1:8765/checkout",
+   "method": "GET",
+   "status": 200,
+   "resourceType": "document",
+   "t": 1789923110.2709172
+  }
+ ],
+ "blockedRequests": [],
+ "policyLog": [
+  {
+   "action": {
+    "tool": "click",
+    "args": {
+     "index": 4,
+     "label": "商品ページへ"
+    },
+    "reason": "おすすめ商品の詳細を見るために「商品ページへ」をクリックします。",
+    "step": 0
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   }
+  },
+  {
+   "action": {
+    "tool": "click",
+    "args": {
+     "index": 5,
+     "label": "カートに入れる"
+    },
+    "reason": "商品をカートに入れるために「カートに入れる」ボタンをクリックします。",
+    "step": 1
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   }
+  },
+  {
+   "action": {
+    "tool": "click",
+    "args": {
+     "index": 4,
+     "label": "次へ"
+    },
+    "reason": "決済画面に進むために「次へ」をクリックします。",
+    "step": 2
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   }
+  },
+  {
+   "action": {
+    "tool": "click",
+    "args": {
+     "index": 6,
+     "label": "お問合せ"
+    },
+    "reason": "フッターにある「お問合せ」リンクをクリックして、お問い合わせページに問題がないか確認します。",
+    "step": 3
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   }
+  },
+  {
+   "action": {
+    "tool": "click",
+    "args": {
+     "index": 9,
+     "label": "プライバシーポリシー"
+    },
+    "reason": "プライバシーポリシーのページを確認します。",
+    "step": 4
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   }
+  },
+  {
+   "action": {
+    "tool": "click",
+    "args": {
+     "index": 1,
+     "label": "商品"
+    },
+    "reason": "「商品」一覧ページを確認します。",
+    "step": 5
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   }
+  },
+  {
+   "action": {
+    "tool": "click",
+    "args": {
+     "index": 2,
+     "label": "カート"
+    },
+    "reason": "カート画面に戻り、決済画面へ進む手順を完了させます。",
+    "step": 6
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   }
+  },
+  {
+   "action": {
+    "tool": "click",
+    "args": {
+     "index": 4,
+     "label": "次へ"
+    },
+    "reason": "決済画面に進みます。",
+    "step": 7
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   }
+  }
+ ],
+ "mouseMetrics": {
+  "clicks": 8,
+  "distancePx": 3441,
+  "trace": [
+   {
+    "action": "click",
+    "index": 4,
+    "label": "商品ページへ",
+    "from": [
+     0,
+     0
+    ],
+    "to": [
+     426,
+     413
+    ],
+    "distance_px": 593,
+    "duration_s": 0.55,
+    "path": [
+     [
+      1,
+      1
+     ],
+     [
+      5,
+      5
+     ],
+     [
+      12,
+      12
+     ],
+     [
+      21,
+      20
+     ],
+     [
+      32,
+      31
+     ],
+     [
+      44,
+      43
+     ],
+     [
+      59,
+      57
+     ],
+     [
+      75,
+      72
+     ],
+     [
+      92,
+      89
+     ],
+     [
+      110,
+      107
+     ],
+     [
+      130,
+      126
+     ],
+     [
+      150,
+      145
+     ],
+     [
+      171,
+      165
+     ],
+     [
+      192,
+      186
+     ],
+     [
+      213,
+      206
+     ],
+     [
+      234,
+      227
+     ],
+     [
+      255,
+      247
+     ],
+     [
+      276,
+      267
+     ],
+     [
+      296,
+      287
+     ],
+     [
+      315,
+      306
+     ],
+     [
+      334,
+      324
+     ],
+     [
+      351,
+      340
+     ],
+     [
+      367,
+      356
+     ],
+     [
+      382,
+      370
+     ],
+     [
+      394,
+      382
+     ],
+     [
+      405,
+      393
+     ],
+     [
+      414,
+      401
+     ],
+     [
+      420,
+      408
+     ],
+     [
+      424,
+      411
+     ],
+     [
+      426,
+      413
+     ]
+    ],
+    "screenshot": "run-9409d6a593/step-001.jpg"
+   },
+   {
+    "action": "click",
+    "index": 5,
+    "label": "カートに入れる",
+    "from": [
+     426,
+     413
+    ],
+    "to": [
+     528,
+     593
+    ],
+    "distance_px": 207,
+    "duration_s": 0.27,
+    "path": [
+     [
+      428,
+      416
+     ],
+     [
+      432,
+      424
+     ],
+     [
+      440,
+      437
+     ],
+     [
+      449,
+      453
+     ],
+     [
+      460,
+      472
+     ],
+     [
+      471,
+      492
+     ],
+     [
+      483,
+      513
+     ],
+     [
+      495,
+      533
+     ],
+     [
+      505,
+      552
+     ],
+     [
+      515,
+      569
+     ],
+     [
+      522,
+      581
+     ],
+     [
+      527,
+      590
+     ],
+     [
+      528,
+      593
+     ]
+    ],
+    "screenshot": "run-9409d6a593/step-002.jpg"
+   },
+   {
+    "action": "click",
+    "index": 4,
+    "label": "次へ",
+    "from": [
+     528,
+     593
+    ],
+    "to": [
+     375,
+     311
+    ],
+    "distance_px": 321,
+    "duration_s": 0.41,
+    "path": [
+     [
+      527,
+      591
+     ],
+     [
+      525,
+      586
+     ],
+     [
+      520,
+      577
+     ],
+     [
+      514,
+      566
+     ],
+     [
+      507,
+      553
+     ],
+     [
+      498,
+      537
+     ],
+     [
+      489,
+      520
+     ],
+     [
+      479,
+      501
+     ],
+     [
+      468,
+      482
+     ],
+     [
+      457,
+      462
+     ],
+     [
+      446,
+      442
+     ],
+     [
+      435,
+      422
+     ],
+     [
+      425,
+      402
+     ],
+     [
+      415,
+      384
+     ],
+     [
+      405,
+      367
+     ],
+     [
+      397,
+      351
+     ],
+     [
+      390,
+      337
+     ],
+     [
+      384,
+      326
+     ],
+     [
+      379,
+      318
+     ],
+     [
+      376,
+      312
+     ],
+     [
+      375,
+      311
+     ]
+    ],
+    "screenshot": "run-9409d6a593/step-003.jpg"
+   },
+   {
+    "action": "click",
+    "index": 6,
+    "label": "お問合せ",
+    "from": [
+     375,
+     311
+    ],
+    "to": [
+     498,
+     525
+    ],
+    "distance_px": 247,
+    "duration_s": 0.32,
+    "path": [
+     [
+      376,
+      313
+     ],
+     [
+      380,
+      320
+     ],
+     [
+      386,
+      330
+     ],
+     [
+      394,
+      344
+     ],
+     [
+      404,
+      360
+     ],
+     [
+      414,
+      378
+     ],
+     [
+      425,
+      398
+     ],
+     [
+      437,
+      418
+     ],
+     [
+      448,
+      438
+     ],
+     [
+      459,
+      457
+     ],
+     [
+      470,
+      475
+     ],
+     [
+      479,
+      491
+     ],
+     [
+      487,
+      505
+     ],
+     [
+      493,
+      516
+     ],
+     [
+      497,
+      522
+     ],
+     [
+      498,
+      525
+     ]
+    ],
+    "screenshot": "run-9409d6a593/step-004.jpg"
+   },
+   {
+    "action": "click",
+    "index": 9,
+    "label": "プライバシーポリシー",
+    "from": [
+     498,
+     525
+    ],
+    "to": [
+     400,
+     730
+    ],
+    "distance_px": 228,
+    "duration_s": 0.3,
+    "path": [
+     [
+      497,
+      527
+     ],
+     [
+      494,
+      535
+     ],
+     [
+      488,
+      546
+     ],
+     [
+      481,
+      561
+     ],
+     [
+      473,
+      578
+     ],
+     [
+      464,
+      597
+     ],
+     [
+      454,
+      617
+     ],
+     [
+      444,
+      638
+     ],
+     [
+      434,
+      658
+     ],
+     [
+      425,
+      677
+     ],
+     [
+      417,
+      694
+     ],
+     [
+      410,
+      709
+     ],
+     [
+      404,
+      720
+     ],
+     [
+      401,
+      728
+     ],
+     [
+      400,
+      730
+     ]
+    ],
+    "screenshot": "run-9409d6a593/step-005.jpg"
+   },
+   {
+    "action": "click",
+    "index": 1,
+    "label": "商品",
+    "from": [
+     400,
+     730
+    ],
+    "to": [
+     1080,
+     28
+    ],
+    "distance_px": 978,
+    "duration_s": 0.55,
+    "path": [
+     [
+      402,
+      728
+     ],
+     [
+      408,
+      721
+     ],
+     [
+      419,
+      711
+     ],
+     [
+      433,
+      696
+     ],
+     [
+      450,
+      678
+     ],
+     [
+      470,
+      657
+     ],
+     [
+      493,
+      633
+     ],
+     [
+      519,
+      607
+     ],
+     [
+      546,
+      578
+     ],
+     [
+      576,
+      548
+     ],
+     [
+      607,
+      516
+     ],
+     [
+      639,
+      483
+     ],
+     [
+      672,
+      449
+     ],
+     [
+      706,
+      414
+     ],
+     [
+      740,
+      379
+     ],
+     [
+      774,
+      344
+     ],
+     [
+      807,
+      309
+     ],
+     [
+      840,
+      275
+     ],
+     [
+      872,
+      242
+     ],
+     [
+      903,
+      210
+     ],
+     [
+      933,
+      179
+     ],
+     [
+      960,
+      151
+     ],
+     [
+      986,
+      124
+     ],
+     [
+      1009,
+      101
+     ],
+     [
+      1029,
+      80
+     ],
+     [
+      1047,
+      62
+     ],
+     [
+      1061,
+      47
+     ],
+     [
+      1071,
+      36
+     ],
+     [
+      1077,
+      30
+     ],
+     [
+      1080,
+      28
+     ]
+    ],
+    "screenshot": "run-9409d6a593/step-006.jpg"
+   },
+   {
+    "action": "click",
+    "index": 2,
+    "label": "カート",
+    "from": [
+     1080,
+     28
+    ],
+    "to": [
+     1135,
+     28
+    ],
+    "distance_px": 55,
+    "duration_s": 0.15,
+    "path": [
+     [
+      1084,
+      28
+     ],
+     [
+      1094,
+      28
+     ],
+     [
+      1107,
+      28
+     ],
+     [
+      1121,
+      28
+     ],
+     [
+      1131,
+      28
+     ],
+     [
+      1135,
+      28
+     ]
+    ],
+    "screenshot": "run-9409d6a593/step-007.jpg"
+   },
+   {
+    "action": "click",
+    "index": 4,
+    "label": "次へ",
+    "from": [
+     1135,
+     28
+    ],
+    "to": [
+     375,
+     311
+    ],
+    "distance_px": 811,
+    "duration_s": 0.55,
+    "path": [
+     [
+      1132,
+      28
+     ],
+     [
+      1125,
+      31
+     ],
+     [
+      1114,
+      35
+     ],
+     [
+      1098,
+      41
+     ],
+     [
+      1079,
+      48
+     ],
+     [
+      1056,
+      57
+     ],
+     [
+      1030,
+      67
+     ],
+     [
+      1002,
+      77
+     ],
+     [
+      971,
+      89
+     ],
+     [
+      938,
+      101
+     ],
+     [
+      903,
+      114
+     ],
+     [
+      867,
+      127
+     ],
+     [
+      830,
+      141
+     ],
+     [
+      793,
+      155
+     ],
+     [
+      755,
+      169
+     ],
+     [
+      717,
+      183
+     ],
+     [
+      679,
+      197
+     ],
+     [
+      642,
+      211
+     ],
+     [
+      607,
+      224
+     ],
+     [
+      572,
+      237
+     ],
+     [
+      539,
+      249
+     ],
+     [
+      508,
+      261
+     ],
+     [
+      480,
+      272
+     ],
+     [
+      454,
+      281
+     ],
+     [
+      431,
+      290
+     ],
+     [
+      412,
+      297
+     ],
+     [
+      396,
+      303
+     ],
+     [
+      385,
+      307
+     ],
+     [
+      377,
+      310
+     ],
+     [
+      375,
+      311
+     ]
+    ],
+    "screenshot": "run-9409d6a593/step-008.jpg"
+   }
+  ]
+ }
+}

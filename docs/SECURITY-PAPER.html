@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MiruQA セキュリティ設計と検証</title>
+<style>
+:root{--paper:#fbfaf6;--ink:#1b1b19;--sub:#55554f;--rule:#c9c6b8;--primary:#1f3a5f;--fail:#b3261e;--pass:#2f6b4f;--review:#9a6700;--shade:#f0eee6}
+@media (prefers-color-scheme:dark){:root{--paper:#161614;--ink:#ecebe4;--sub:#a9a89f;--rule:#3b3a35;--primary:#8fb0dc;--fail:#f08a80;--pass:#7cc4a0;--review:#e0b35a;--shade:#211f1c}}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0;color:var(--ink);background:var(--paper);font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;line-height:1.9;font-size:16px}
+main{max-width:820px;margin:0 auto;padding:48px 20px 96px}
+h1{font-size:26px;line-height:1.5;margin:0 0 8px;font-weight:700}
+h2{font-size:20px;margin:56px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--rule);font-weight:700}
+h3{font-size:17px;margin:32px 0 8px;font-weight:700}
+p{margin:12px 0}
+.meta,.small,figcaption,caption{color:var(--sub);font-size:13.5px;line-height:1.7}
+.abstract{border-top:2px solid var(--ink);border-bottom:1px solid var(--rule);padding:14px 0;margin:24px 0}
+.abstract b{display:block;margin-bottom:4px}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px;line-height:1.7;font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif}
+caption{text-align:left;margin-bottom:6px;caption-side:top}
+th,td{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:7px 8px;text-align:left;vertical-align:top}
+th{background:var(--shade);font-weight:600}
+figure{margin:28px 0}
+figure svg{width:100%;height:auto;display:block;background:var(--paper)}
+.ok{color:var(--pass);font-weight:700}.ng{color:var(--fail);font-weight:700}.wt{color:var(--review);font-weight:700}
+code{font-family:ui-monospace,Menlo,monospace;font-size:.88em;background:var(--shade);padding:1px 4px;border-radius:3px}
+ol.refs{font-size:14px;padding-left:22px}
+.note{border-left:3px solid var(--primary);padding:4px 12px;margin:16px 0;background:var(--shade);font-size:14.5px}
+.toc{font-size:14.5px;line-height:1.8;columns:2;column-gap:32px;margin:16px 0}
+.toc a{color:var(--primary);text-decoration:none}
+@media print{body{font-size:11pt}main{max-width:none;padding:0}h2{break-after:avoid}figure,table{break-inside:avoid}}
+@media (max-width:640px){.toc{columns:1}main{padding:28px 16px 64px}}
+</style>
+</head>
+<body>
+<main>
+
+<h1>AIによるWebテストサービスの、セキュリティ設計と検証<br><span style="font-size:17px;font-weight:400">MiruQA における、入力データの保護・対象サイトの保護・エージェントの制御</span></h1>
+<p class="meta">MiruQA 開発チーム ／ 2026-09-22 版 ／ 対象コード: 開発ブランチ（Java 110件・Python 152件の自動テストが成功した時点）</p>
+
+<div class="abstract">
+<b>要旨</b>
+仕様書を読み、実際のブラウザで画面を操作するAIエージェント（MiruQA）は、一般のWebアプリと異なる2種類のリスクを持つ。第一に、<em>利用者が渡したデータ</em>（仕様書、点検対象の画面の内容）が、外部のAIサービスへ渡ること。第二に、<em>エージェント自身が他者のシステムを操作できる</em>こと（連打・改ざんなどの能動的なテスト、第三者サイトへの意図しない接触）。本稿は、これらの脅威を整理し、多層の防御（認証・データ分離・対象の認可・操作の制限・データ保護・監査）の設計を示し、自動テストと独立したレビューで確認できたことと、確認できていないことを区別して報告する。「安全である」と主張せず、<em>問題になり得る操作を、仕組みとして封じる</em>ことを目標とした。残る限界（正規表現によるマスクの不完全さ、上流のAI事業者のデータ保持が未確認、法務の確認が未実施など）は、第8章にまとめた。
+</div>
+
+<div class="toc">
+<a href="#s1">1. はじめに</a><br>
+<a href="#s2">2. 脅威モデル</a><br>
+<a href="#s3">3. システム構成とデータの流れ</a><br>
+<a href="#s4">4. 防御の設計（多層防御）</a><br>
+<a href="#s5">5. 対象サイトの保護：3つのモード</a><br>
+<a href="#s6">6. 入力データの保護</a><br>
+<a href="#s7">7. 検証</a><br>
+<a href="#s8">8. 限界と残るリスク</a><br>
+<a href="#s9">9. 法的な観点</a><br>
+<a href="#s10">10. 今後の課題</a><br>
+<a href="#s11">付録・参考文献</a>
+</div>
+
+<h2 id="s1">1. はじめに</h2>
+<p>MiruQAは、仕様書（txt・md・docx・PDF）から、テスト項目書を生成し、実際のブラウザで画面を操作して、証拠つきの不具合票を作る。この動作は、利用者にとって有用である一方、次の性質のために、セキュリティ上の設計が製品の価値そのものとなる。</p>
+<ul>
+<li><b>外部のAIにデータが渡る</b>。仕様書と画面の内容は、ゲートウェイ（OrcaRouter）を経由して、上流のAIモデルに送られる。</li>
+<li><b>エージェントが操作を行う</b>。ボタンを押し、入力し、時には連打する。誤って、または悪用されて、他者のサイトに被害を与え得る。</li>
+<li><b>点検対象の内容を信頼できない</b>。対象のページに、AIへの命令が隠されている場合がある（間接プロンプトインジェクション）。</li>
+</ul>
+<p>本稿の貢献は、(1) 脅威の整理、(2) 各脅威に対応する制御の設計、(3) 実装に対する検証の結果と、見つかった不備の記録、(4) 未解決の限界の明記、である。</p>
+
+<h2 id="s2">2. 脅威モデル</h2>
+<h3>2.1 守るべき資産</h3>
+<table>
+<caption>表1　資産と、侵害された場合の影響</caption>
+<tr><th>資産</th><th>内容</th><th>侵害された場合の影響</th></tr>
+<tr><td>A1 利用者の仕様書</td><td>未公開の機能・仕様</td><td>機密の漏えい</td></tr>
+<tr><td>A2 点検対象の画面内容</td><td>テスト環境の表示、ダミー（時に実在）の個人情報</td><td>個人情報・機密の漏えい</td></tr>
+<tr><td>A3 点検結果</td><td>不具合票、スクリーンショット、レポート</td><td>脆弱性情報の漏えい</td></tr>
+<tr><td>A4 アカウントと組織のデータ</td><td>メール、パスワードのハッシュ、監査ログ</td><td>なりすまし、他組織へのデータ露出</td></tr>
+<tr><td>A5 APIキー・秘密の設定</td><td>OrcaRouterのキー、ワーカーの共有秘密</td><td>不正利用、費用の発生</td></tr>
+<tr><td>A6 点検対象のサイト</td><td>利用者または第三者のシステム</td><td>データの破壊、業務の妨害、法的責任</td></tr>
+<tr><td>A7 利用予算</td><td>AIの利用費</td><td>費用の暴走</td></tr>
+</table>
+
+<h3>2.2 脅威となる主体</h3>
+<table>
+<caption>表2　主体と、想定する行為</caption>
+<tr><th>主体</th><th>想定する行為</th></tr>
+<tr><td>T1 悪意のある利用者（別の組織）</td><td>他組織の点検結果・仕様書のIDを推測して取得する（IDOR）</td></tr>
+<tr><td>T2 外部の攻撃者</td><td>ログインの総当たり、CSRF、ワーカーAPIへの直接アクセス</td></tr>
+<tr><td>T3 悪意のある点検対象</td><td>ページに隠した命令でAIを操る、内部アドレスへ誘導する（SSRF）、AIに危険な操作をさせる</td></tr>
+<tr><td>T4 誤用・悪用する利用者</td><td>他人のサイト・本番サイトに、能動的なテスト（連打・改ざん）をかける</td></tr>
+<tr><td>T5 過失</td><td>個人情報を含む文章を入力する、キーを誤ってコミットする</td></tr>
+</table>
+
+<h3>2.3 信頼境界</h3>
+<p>信頼境界は、(a) 利用者のブラウザとWeb層、(b) Web層とワーカー、(c) ワーカーと点検対象、(d) ワーカーと外部のAIゲートウェイ、の4か所にある。図1に示す。</p>
+
+<figure>
+<svg viewBox="0 0 800 400" role="img" aria-label="図1 システム構成と信頼境界">
+<defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#55554f"/></marker></defs>
+<g font-family="-apple-system,Hiragino Sans,sans-serif" font-size="13" fill="currentColor">
+<rect x="10" y="40" width="150" height="300" rx="4" fill="none" stroke="#1f3a5f" stroke-dasharray="5 4"/>
+<text x="20" y="34" font-size="12" fill="#1f3a5f">利用者の環境</text>
+<rect x="30" y="90" width="110" height="56" fill="none" stroke="currentColor"/><text x="85" y="123" text-anchor="middle">ブラウザ</text>
+<rect x="30" y="250" width="110" height="60" fill="none" stroke="currentColor"/><text x="85" y="276" text-anchor="middle">点検対象</text><text x="85" y="294" text-anchor="middle" font-size="11">(開発環境/公開)</text>
+<rect x="215" y="40" width="330" height="300" rx="4" fill="none" stroke="#1f3a5f" stroke-dasharray="5 4"/>
+<text x="225" y="34" font-size="12" fill="#1f3a5f">MiruQA（同一の端末、または同一の管理下）</text>
+<rect x="235" y="80" width="130" height="70" fill="none" stroke="currentColor"/><text x="300" y="108" text-anchor="middle">Web層</text><text x="300" y="126" text-anchor="middle" font-size="11">認証・CSRF・分離</text><text x="300" y="140" text-anchor="middle" font-size="11">認可の決定</text>
+<rect x="395" y="80" width="130" height="70" fill="none" stroke="currentColor"/><text x="460" y="108" text-anchor="middle">ワーカー</text><text x="460" y="126" text-anchor="middle" font-size="11">ポリシーゲート</text><text x="460" y="140" text-anchor="middle" font-size="11">マスク・ブラウザ</text>
+<rect x="235" y="250" width="130" height="60" fill="none" stroke="currentColor"/><text x="300" y="276" text-anchor="middle">DB(H2)</text><text x="300" y="294" text-anchor="middle" font-size="11">組織ごとに分離</text>
+<rect x="395" y="250" width="130" height="60" fill="none" stroke="currentColor"/><text x="460" y="276" text-anchor="middle">runs/ 台帳</text><text x="460" y="294" text-anchor="middle" font-size="11">プロンプトは保存しない</text>
+<rect x="610" y="40" width="180" height="300" rx="4" fill="none" stroke="#b3261e" stroke-dasharray="5 4"/>
+<text x="620" y="34" font-size="12" fill="#b3261e">外部（管理外）</text>
+<rect x="630" y="90" width="140" height="70" fill="none" stroke="currentColor"/><text x="700" y="118" text-anchor="middle">OrcaRouter</text><text x="700" y="136" text-anchor="middle" font-size="11">ガードレール</text>
+<rect x="630" y="210" width="140" height="70" fill="none" stroke="currentColor"/><text x="700" y="238" text-anchor="middle">上流のAIモデル</text><text x="700" y="256" text-anchor="middle" font-size="11">(保持は未確認)</text>
+<line x1="140" y1="118" x2="235" y2="118" stroke="#55554f" marker-end="url(#a)"/><text x="187" y="110" text-anchor="middle" font-size="10">B1</text>
+<line x1="365" y1="115" x2="395" y2="115" stroke="#55554f" marker-end="url(#a)"/><text x="380" y="106" text-anchor="middle" font-size="10">B2</text>
+<line x1="460" y1="150" x2="460" y2="180" stroke="none"/>
+<path d="M430,150 L430,200 L140,270" fill="none" stroke="#55554f" marker-end="url(#a)"/><text x="290" y="205" text-anchor="middle" font-size="10">B3 操作(GET/POST)</text>
+<line x1="525" y1="115" x2="630" y2="115" stroke="#55554f" marker-end="url(#a)"/><text x="577" y="106" text-anchor="middle" font-size="10">B4 マスク済みテキスト</text>
+<line x1="700" y1="160" x2="700" y2="210" stroke="#55554f" marker-end="url(#a)"/>
+<text x="20" y="378" font-size="11">B1 HTTP(認証) / B2 共有の秘密による認証 / B3 ポリシーゲートを通した操作 / B4 画像は送らない</text>
+</g></svg>
+<figcaption>図1　システム構成と信頼境界。破線の枠が境界。外部へ出るのはB4（マスク済みのテキスト）のみで、スクリーンショットは送信しない。</figcaption>
+</figure>
+
+<h2 id="s3">3. システム構成とデータの流れ</h2>
+<p>Web層（Java、Spring Boot）が、認証・組織ごとの分離・対象の認可を担当する。ワーカー（Python）が、ブラウザの操作とAIの呼び出しを担当する。Web層は、AIを直接呼ばず、APIキーを持たない。両者は、共有の秘密（HMACの定数時間比較）で認証する。ワーカーは、共有の秘密が設定されていない場合に<b>起動を拒否する</b>（フェイルクローズド）。明示的に無効化した場合のみ、警告つきで無認証を許す。</p>
+<table>
+<caption>表3　AIサービスへ送るデータと、送らないデータ</caption>
+<tr><th>データ</th><th>送信</th><th>備考</th></tr>
+<tr><td>仕様書の本文</td><td><span class="ok">送る（マスク後）</span></td><td>抽出の前に、個人情報らしい文字列を置換</td></tr>
+<tr><td>画面のテキストと操作できる要素の一覧</td><td><span class="ok">送る（マスク後）</span></td><td>各ステップの直前にマスク</td></tr>
+<tr><td>下見の結果（ページのタイトル、種別）</td><td><span class="ok">送る（マスク後）</span></td><td>2026-09-22 の点検で漏れを発見し、修正</td></tr>
+<tr><td>利用者が追加した文章</td><td><span class="ok">送る（マスク後）</span></td><td>同上</td></tr>
+<tr><td>スクリーンショット</td><td><span class="ng">送らない</span></td><td>証拠として、手元にだけ保存</td></tr>
+<tr><td>パスワード欄の値</td><td><span class="ng">読まない</span></td><td>文字数だけを扱う</td></tr>
+<tr><td>APIキー・共有の秘密</td><td><span class="ng">送らない</span></td><td>環境変数。バージョン管理の対象外</td></tr>
+<tr><td>台帳（コストの記録）</td><td>―</td><td>トークン数と費用のみ。プロンプト本文は記録しない</td></tr>
+</table>
+
+<h2 id="s4">4. 防御の設計（多層防御）</h2>
+<p>単一の対策に依存せず、独立した複数の層で、同じ脅威に備える。図2に層構造を示す。上の層が破られても、下の層が、被害の拡大を止める。</p>
+
+<figure>
+<svg viewBox="0 0 800 330" role="img" aria-label="図2 多層防御">
+<g font-family="-apple-system,Hiragino Sans,sans-serif" font-size="13" fill="currentColor">
+<rect x="20" y="10" width="760" height="44" fill="none" stroke="#1f3a5f"/><text x="34" y="36"><tspan font-weight="700">L1 入口</tspan>　認証（BCrypt・5回失敗で15分ロック）／CSRF／セッション上限／メール確認・再設定トークン（期限つき・1回限り）</text>
+<rect x="60" y="62" width="680" height="44" fill="none" stroke="#1f3a5f"/><text x="74" y="88"><tspan font-weight="700">L2 分離</tspan>　組織ごとのデータ分離（全テーブルに organization_id）／他組織のIDは404／監査ログ</text>
+<rect x="100" y="114" width="600" height="44" fill="none" stroke="#1f3a5f"/><text x="114" y="140"><tspan font-weight="700">L3 対象の認可</tspan>　プロジェクトの種類（作成後は変更不可）／所有確認／テスト環境の宣言／同意の記録</text>
+<rect x="140" y="166" width="520" height="44" fill="none" stroke="#1f3a5f"/><text x="154" y="192"><tspan font-weight="700">L4 操作の制限</tspan>　ポリシーゲート／SSRF・拒否リスト／回数・間隔の上限／読み取り専用の強制</text>
+<rect x="180" y="218" width="440" height="44" fill="none" stroke="#1f3a5f"/><text x="194" y="244"><tspan font-weight="700">L5 データの保護</tspan>　マスク／画像を送らない／ガードレール／台帳にプロンプトを残さない</text>
+<rect x="220" y="270" width="360" height="44" fill="none" stroke="#1f3a5f"/><text x="234" y="296"><tspan font-weight="700">L6 費用・停止</tspan>　予算上限（実行・日・組織）／緊急停止／タイムアウト</text>
+</g></svg>
+<figcaption>図2　多層防御の構造。外側から内側へ、脅威の入口を順に絞る。</figcaption>
+</figure>
+
+<h3>4.1 認証とセッション（L1）</h3>
+<ul>
+<li>パスワードはBCryptでハッシュ化して保存する。8文字以上を要求する。</li>
+<li>ログインを5回連続で失敗すると、15分間ロックし、監査ログに記録する。</li>
+<li>メール確認のトークンは24時間、パスワード再設定のトークンは30分の有効期限を持ち、1回だけ使える。メール送信は模擬（ファイル出力）で、実際のメールは送らない。</li>
+<li>すべての変更系のリクエストに、CSRFトークンを要求する。</li>
+<li>同時セッションの数に上限（5）を設ける。</li>
+</ul>
+
+<h3>4.2 データの分離（L2）</h3>
+<p>プロジェクト・仕様書・プラン・実行・使用量・監査の全データに、組織IDを持たせ、他組織のデータは、URLを直接指定しても、取得できない。仕様書の取得APIで、他組織のIDを指定すると取得できる不備を、レビューで発見し、修正した（第7章）。修正後は、分離の自動テストが常に実行される。</p>
+
+<h3>4.3 ワーカーAPIの保護</h3>
+<p>ワーカーは、Web層からの要求だけを受け付ける。共有の秘密を、定数時間比較で照合し、一致しない要求は、401で拒否する。秘密が未設定なら、起動しない。</p>
+
+<h3>4.4 AIの呼び出しの制御（L6の一部）</h3>
+<ul>
+<li>非ストリーミングで、自前の再試行と回復を行う（429は待機時間を守る）。</li>
+<li>呼び出しの前に、予算（1実行、1日、組織の日次・月次）を確認し、超過なら、APIを呼ばずに終了する。</li>
+<li>台帳に、トークン数・費用・モデル名を記録する。プロンプトの本文は、記録しない。</li>
+</ul>
+
+<h2 id="s5">5. 対象サイトの保護：3つのモード</h2>
+<p>「AIが実際に操作できる」ことは、悪用されれば、第三者への攻撃にもなる。そこで、点検の対象を、プロジェクトの<b>種類</b>で分け、種類ごとに、許可する操作を、サーバー側で決める。種類は、作成後に変更できない（読み取り専用のプロジェクトから、能動的なテストへ切り替える抜け道をなくすため）。</p>
+
+<table>
+<caption>表4　対象のモードと、許可される操作</caption>
+<tr><th></th><th>A ローカル</th><th>B 公開ステージング（所有確認済み）</th><th>C 公開ページ（読み取り専用）</th></tr>
+<tr><td>対象</td><td>ループバック・プライベートIP・<code>*.local</code>／<code>*.test</code></td><td>自分のドメイン</td><td>任意の公開ページ</td></tr>
+<tr><td>確認</td><td>テスト環境の宣言</td><td>所有確認（<code>/.well-known/</code>）＋宣言</td><td>規約・robots.txtの確認への同意</td></tr>
+<tr><td>閲覧（GET）</td><td>可</td><td>可</td><td>可</td></tr>
+<tr><td>送信・状態の変更</td><td>承認つきで可</td><td>承認つきで可</td><td class="ng">不可（遮断）</td></tr>
+<tr><td>能動テスト（連打・改ざん・異常入力）</td><td>3条件で可</td><td>3条件で可</td><td class="ng">不可</td></tr>
+<tr><td>ログインが必要な画面</td><td>可（予定）</td><td>可（予定）</td><td class="ng">不可</td></tr>
+<tr><td>内部アドレス</td><td>許可（対象そのもの）</td><td class="ng">遮断</td><td class="ng">遮断</td></tr>
+<tr><td>メタデータのアドレス・拒否リスト</td><td class="ng">常に遮断</td><td class="ng">常に遮断</td><td class="ng">常に遮断</td></tr>
+</table>
+
+<h3>5.1 所有確認とSSRF対策</h3>
+<p>モードBでは、対象サイトの<code>/.well-known/</code>配下に、発行したトークンと同じ内容のファイルを置く方式で、所有を確認する。確認のためのHTTP取得に先立ち、名前解決した先のIPアドレスを検査し、ループバック・プライベート・リンクローカル・クラウドのメタデータ（<code>169.254.169.254</code>）であれば、取得自体を行わない（SSRF対策）。リダイレクトは追わない。拒否リスト（政府機関の<code>.go.jp</code>・<code>.lg.jp</code>、主催・協賛企業のホスト名）は、いずれのモードでも、登録自体を拒否する。設定の値は、変更できる。</p>
+
+<h3>5.2 能動テストの許可（3条件）</h3>
+<p>連打・改ざん・異常入力といった、状態を変え得る操作は、<b>次の3条件がすべて成立したときだけ</b>実行される（図3）。AIが「承認済み」と自己申告することはできない。</p>
+
+<figure>
+<svg viewBox="0 0 800 210" role="img" aria-label="図3 能動テストの3条件">
+<defs><marker id="b" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#55554f"/></marker></defs>
+<g font-family="-apple-system,Hiragino Sans,sans-serif" font-size="13" fill="currentColor">
+<rect x="20" y="20" width="200" height="50" fill="none" stroke="currentColor"/><text x="120" y="50" text-anchor="middle">① テスト環境フラグ</text>
+<rect x="20" y="80" width="200" height="50" fill="none" stroke="currentColor"/><text x="120" y="102" text-anchor="middle">② テスト環境の宣言</text><text x="120" y="120" text-anchor="middle" font-size="11">＋所有確認またはローカル</text>
+<rect x="20" y="140" width="200" height="50" fill="none" stroke="currentColor"/><text x="120" y="170" text-anchor="middle">③ 項目ごとの承認</text>
+<path d="M220,45 L300,105 M220,105 L300,105 M220,165 L300,105" stroke="#55554f" fill="none"/>
+<rect x="300" y="80" width="90" height="50" fill="none" stroke="#1f3a5f"/><text x="345" y="110" text-anchor="middle" font-weight="700">AND</text>
+<line x1="390" y1="105" x2="450" y2="105" stroke="#55554f" marker-end="url(#b)"/>
+<rect x="450" y="60" width="200" height="90" fill="none" stroke="#1f3a5f"/><text x="550" y="86" text-anchor="middle">ポリシーゲート</text><text x="550" y="106" text-anchor="middle" font-size="11">最大10回・100ms間隔</text><text x="550" y="122" text-anchor="middle" font-size="11">許可ドメイン内のみ</text><text x="550" y="138" text-anchor="middle" font-size="11">無害な文字列のみ</text>
+<line x1="650" y1="105" x2="700" y2="105" stroke="#55554f" marker-end="url(#b)"/>
+<rect x="700" y="80" width="90" height="50" fill="none" stroke="currentColor"/><text x="745" y="110" text-anchor="middle">実行</text>
+</g></svg>
+<figcaption>図3　能動テストの許可条件。3条件のANDと、実行時の上限。探索的テストの中では、能動マクロを、コードで拒否する。</figcaption>
+</figure>
+
+<ul>
+<li>入力に使う文字列は、実行されない無害なマーカーに限る（例: <code>&lt;b&gt;MARKER_XSS_TEST&lt;/b&gt;</code>）。スクリプトやSQL文の攻撃的な断片は使わない。</li>
+<li>いつでも実行を止められる（緊急停止）。停止の応答は、テストで確認している。</li>
+</ul>
+
+<h3>5.3 読み取り専用モードの強制（モードC）</h3>
+<table>
+<caption>表5　モードCで、ブラウザ層が強制する制約</caption>
+<tr><th>制約</th><th>内容</th></tr>
+<tr><td>メソッド</td><td>GET以外の送信を遮断（フォーム送信、fetch・XHRのPOST/PUT/DELETEを含む）</td></tr>
+<tr><td>robots.txt</td><td>取得前に確認し、禁止されたパスへは行かない</td></tr>
+<tr><td>低負荷</td><td>同一ホストへ1秒に1回以下、同時接続1、最大12ページ</td></tr>
+<tr><td>停止</td><td>429・503を受けたら、再試行せずに即終了</td></tr>
+<tr><td>名乗り</td><td>User-Agentを <code>MiruQA/&lt;版&gt;</code> とする</td></tr>
+<tr><td>回避しない</td><td>CAPTCHA・ボット検知・ログイン要求は、突破せずに終了</td></tr>
+<tr><td>観点の限定</td><td>生成する項目を、表示・文言・リンク・アクセシビリティ・使いやすさ・レスポンシブ・速度に限定</td></tr>
+</table>
+
+<h2 id="s6">6. 入力データの保護</h2>
+<h3>6.1 マスク</h3>
+<p>AIに送る前に、メールアドレス・電話番号・氏名・住所らしい文字列を、正規表現で、<code>[EMAIL]</code>などに置換する。適用箇所は、仕様書の本文、各ステップの画面テキスト、下見の結果、利用者が追加した文章、の4か所である。<b>この方式は、完全ではない</b>（第8章）。</p>
+
+<h3>6.2 画像を送らない</h3>
+<p>画面の観察は、テキストと操作可能な要素の一覧で行い、スクリーンショットは、AIに送らない。これは、コストと、画像内の個人情報の流出、の両面の対策である。将来、画像入力を使う場合は、マスクの方法を先に決める。</p>
+
+<h3>6.3 ゲートウェイのガードレール（OrcaRouter）</h3>
+<p>アプリ側のマスクに加えて、ゲートウェイ側に、入力の検査ルールを設定した（2026-09-22 時点）。下表は、作成済みのルールである。</p>
+<table>
+<caption>表6　作成したガードレールと、状態（管理画面の確認時点）</caption>
+<tr><th>ルール</th><th>目的</th><th>状態</th></tr>
+<tr><td>連絡先情報マスク</td><td>メール・電話のマスク</td><td>作成済み・キー未紐付け・原文ログOFF</td></tr>
+<tr><td>PII シールド</td><td>個人情報のマスク</td><td>作成済み・キー未紐付け・原文ログON</td></tr>
+<tr><td>シークレット &amp; API キーブロッカー</td><td>キー・トークンの遮断</td><td>作成済み・キー未紐付け・原文ログON</td></tr>
+<tr><td>金融データブロッカー（PCI）</td><td>カード番号の遮断</td><td>作成済み・キー未紐付け・原文ログOFF</td></tr>
+<tr><td>プロンプトインジェクション基本対策</td><td>命令の混入の検出</td><td>作成済み・キー未紐付け・原文ログON</td></tr>
+<tr><td>システムプロンプト漏洩（強／出力）</td><td>出力の検査</td><td>作成済み・キー未紐付け・原文ログON</td></tr>
+</table>
+<div class="note"><b>更新（2026-09-22）</b>：ゲートウェイの仕様上、<b>1つのAPIキーに紐付けられるガードレールは1つだけ</b>で、1つのガードレールに複数のルールを入れる。そこで、上表のルールを統合した合成ガードレールを作り、アプリ用のキーに紐付けた（利用者による設定）。紐付け後に、ダミーの個人情報を使って動作を確認した結果は、次のとおり。
+<ul>
+<li>メールアドレスは、マスクされた。<b>電話番号（日本の形式）は、ゲートウェイ側では、マスクされずに通過した。</b>アプリ側のマスク（<code>agent/masking.py</code>）は電話番号に対応しているため、二重防御としては機能するが、ゲートウェイ側には、その後、日本の電話番号のカスタム正規表現を追加した（利用者の設定。<b>追加後の再確認は、未実施</b>）。</li>
+<li>キー風の文字列は、ブロックではなく、<code>[REDACTED]</code> への置換（マスク）になった（設定どおり）。</li>
+<li>URL（<code>http://127.0.0.1:8765/...</code>）は、改変されずに通過した（IPアドレスのマスクが、影響していないことの確認）。</li>
+</ul>
+表6は、統合前の個別ルールの記録であり、統合後の状態は、上記の結果のとおり。</div>
+
+<h3>6.4 秘密情報の管理</h3>
+<ul>
+<li>APIキーと共有の秘密は、環境変数で渡す。<code>.env</code>は、バージョン管理の対象外にしている。</li>
+<li>実行結果（<code>runs/</code>）と、模擬メールの出力は、バージョン管理の対象外にしている。</li>
+<li>点検対象のテスト用アカウント（ログインが必要な画面の点検に使う）は、<b>AES-256-GCM で暗号化して保管</b>する。鍵は環境変数で渡し、<b>未設定なら、保存も復号も失敗する（フェイルクローズド）</b>。実行時にだけ復号し、ワーカーの計画・実行記録・台帳には、平文のパスワードを残さない（記録の検索で、残っていないことを確認済み）。</li>
+</ul>
+
+<h2 id="s7">7. 検証</h2>
+<h3>7.1 自動テスト</h3>
+<table>
+<caption>表7　自動テストの件数（2026-09-22 時点）</caption>
+<tr><th>領域</th><th>件数</th><th>結果</th><th>主な内容</th></tr>
+<tr><td>Web層（Java）</td><td>110</td><td><span class="ok">失敗0</span></td><td>CSRF、テナント分離、ロック、所有確認、キュー、上限、再実行</td></tr>
+<tr><td>ワーカー（Python）</td><td>152</td><td><span class="ok">失敗0</span></td><td>SSRF、拒否リスト、認可、緊急停止、読み取り専用（GET遮断・robots.txt・低速・429停止）、マスク</td></tr>
+</table>
+<p class="small">件数は、実行結果の記録から集計した。AIの呼び出しを伴わない（疑似応答での）テストが中心である。</p>
+
+<h3>7.2 レビューで見つかった不備と、修正</h3>
+<p>実装とは独立した立場で、コードと動作を確認し、次の不備を発見した。いずれも修正し、再発を防ぐテストを追加した。この一覧は、検証が、実際に不備を見つけたことの記録である。</p>
+<table>
+<caption>表8　発見した不備</caption>
+<tr><th>#</th><th>不備</th><th>脅威</th><th>対応</th></tr>
+<tr><td>1</td><td>一部のフォーム・画面のスクリプトが、CSRFトークンを付けず、403になる／保護が抜けていた</td><td>T2</td><td>トークンを付与。CSRFの自動テストを追加</td></tr>
+<tr><td>2</td><td>仕様書の取得APIが、他組織のIDでも取得できた（IDOR）</td><td>T1</td><td>組織ごとの所有を記録し、照合。テスト追加</td></tr>
+<tr><td>3</td><td>ワーカーAPIの認証が、設定がないと無認証で起動した（フェイルオープン）</td><td>T2</td><td>設定がなければ起動を拒否（フェイルクローズド）</td></tr>
+<tr><td>4</td><td>ホスト名の拒否リストがなかった</td><td>T3/T4</td><td>政府機関・主催・協賛企業を拒否。Web層とワーカーの両方に実装</td></tr>
+<tr><td>5</td><td>クラウドのメタデータのアドレスが、「プライベート」と判定され、ローカル扱いで通り得た</td><td>T3</td><td>判定の順序を修正。常に拒否するテストを追加</td></tr>
+<tr><td>6</td><td>異常入力の文字列に、実行され得るスクリプトとSQLの断片が含まれていた</td><td>T4</td><td>無害な記号の文字列へ変更。危険な断片が含まれないテストを追加</td></tr>
+<tr><td>7</td><td>項目書の生成と、利用者の追加文章が、マスクを通らずAIへ送られていた</td><td>T5</td><td>マスクを適用。ダミー情報が送信内容に含まれないテストを追加</td></tr>
+<tr><td>8</td><td>テスト用アカウントを、認可の情報に混ぜたため、パスワードが、計画ファイルに平文で残った</td><td>T5</td><td>混ぜないように修正。実際のファイルの中身で発見し、回帰テストを追加</td></tr>
+</table>
+
+<h3>7.3 OWASP Top 10 for LLM Applications（2025）との対応（自己評価）</h3>
+<table>
+<caption>表9　対応の自己評価（第三者の評価ではない）</caption>
+<tr><th>項目</th><th>対策</th><th>評価</th></tr>
+<tr><td>LLM01 プロンプトインジェクション</td><td>ページ内容・利用者の文章を、指示ではなくデータとして扱う。危険な操作は、ポリシーゲートと承認で、AIの判断と独立に制御</td><td class="wt">部分的（隠し指示のデモで確認。網羅ではない）</td></tr>
+<tr><td>LLM02 機微情報の開示</td><td>マスク、画像を送らない、台帳に本文を残さない</td><td class="wt">部分的（正規表現の限界、上流の保持が未確認）</td></tr>
+<tr><td>LLM05 不適切な出力の扱い</td><td>AIの出力を、構造化された引数として検証してから実行</td><td class="wt">部分的</td></tr>
+<tr><td>LLM06 過剰な権限</td><td>3条件、上限、読み取り専用、緊急停止</td><td class="ok">対策あり</td></tr>
+<tr><td>LLM07 システムプロンプトの漏えい</td><td>秘密をプロンプトに入れない。ガードレール（未紐付け）</td><td class="wt">部分的</td></tr>
+<tr><td>LLM10 際限のない消費</td><td>実行・日・組織の予算、実行のタイムアウト、同時実行の上限</td><td class="ok">対策あり</td></tr>
+</table>
+
+<h2 id="s8">8. 限界と残るリスク</h2>
+<table>
+<caption>表10　確認できていないこと・限界</caption>
+<tr><th>#</th><th>内容</th><th>影響</th></tr>
+<tr><td>L1</td><td>マスクは正規表現で、氏名・住所などの検出は不完全。<b>姓と名の間にスペースがない氏名（例:「山田太郎」）は、検出されない</b>（実測）。ゲートウェイ側は、日本の電話番号を、マスクしなかった（実測。その後、正規表現を追加。再確認は未実施）</td><td>個人情報が、AIに渡り得る。実在の個人情報を、テスト環境に置かない前提</td></tr>
+<tr><td>L2</td><td>上流のAI事業者が、データを保持するかは、未確認（ゲートウェイの資料に記載はあるが、検証していない）</td><td>保持される可能性を、排除できない</td></tr>
+<tr><td>L3</td><td>ゲートウェイのガードレールは、統合してキーに紐付け、動作を確認した。メール・キー風の文字列は、期待どおり。電話番号は、通過した。その後、正規表現を追加した（第6.3節）</td><td>正規表現の追加後の動作は、未確認（アプリ側のマスクは、常に働く）</td></tr>
+<tr><td>L4</td><td>DBファイルと、実行結果は、暗号化していない（保存時の暗号化は未実装）</td><td>端末が奪われた場合に、内容が読まれる</td></tr>
+<tr><td>L5</td><td>HTTPSは、未対応（ローカル運用が前提）。クラウドで運用する場合は、必須</td><td>通信の盗聴</td></tr>
+<tr><td>L6</td><td>セキュリティヘッダー、ログインのレート制限（IP単位）、依存関係の脆弱性スキャンは、未確認・未実施</td><td>未評価</td></tr>
+<tr><td>L7</td><td>第三者による脆弱性診断（ペネトレーションテスト）は、未実施</td><td>自己評価に留まる</td></tr>
+<tr><td>L8</td><td>プロンプトインジェクションの耐性は、限られたケースでの確認</td><td>網羅的ではない</td></tr>
+<tr><td>L9</td><td>利用規約・プライバシーポリシーは、下書きで、法務の確認が未実施</td><td>商用の前に、専門家の確認が必要</td></tr>
+</table>
+
+<h2 id="s9">9. 法的な観点</h2>
+<p>本稿は、法的助言ではない。日本の法令に照らして、他者のサイトへの自動的な操作は、次の点でリスクを持ち得る。</p>
+<ul>
+<li>負荷や、実際の注文・送信によって、業務を妨げた場合、偽計業務妨害や電子計算機損壊等業務妨害（刑法233条・234条の2）に問われる可能性がある。</li>
+<li>認証や、アクセス制御を回避した場合は、不正アクセス禁止法の問題になり得る。ログイン不要の公開ページの閲覧そのものは、通常、この対象ではない。</li>
+<li>自動アクセスを禁じる利用規約への違反は、民事上の問題になり得る。</li>
+</ul>
+<p>MiruQAは、これらに対して、<b>問題になり得る操作を、仕組みとして封じる</b>ことでリスクを下げる（対象の種類の分離、所有確認、宣言と承認、回数・間隔の上限、読み取り専用の強制、robots.txtの尊重、回避しない設計）。ただし、「合法であることの保証」は、ソフトウェアだけではできない。利用規約に、責任の所在（対象の管理者の許可を得ること）を明記し、商用化の前に、専門家の確認を受ける。</p>
+
+<h2 id="s10">10. 今後の課題</h2>
+<ol>
+<li>追加した電話番号の正規表現が、実際にマスクすることを再確認し、ゲートウェイのマッチ件数を記録する。</li>
+<li>保存時の暗号化（DB、実行結果）。クラウド運用時のHTTPS、セキュリティヘッダー。</li>
+<li>依存関係の脆弱性スキャンと、第三者による脆弱性診断。</li>
+<li>プロンプトインジェクションの評価セットの拡充。</li>
+<li>法務の確認（規約、公開ページの点検の扱い）。</li>
+</ol>
+
+<h2 id="s11">付録・参考文献</h2>
+<ol class="refs">
+<li>OWASP, "OWASP Top 10 for LLM Applications 2025".</li>
+<li>OWASP, "OWASP Application Security Verification Standard (ASVS)".</li>
+<li>OWASP, "Server-Side Request Forgery Prevention Cheat Sheet".</li>
+<li>OWASP, "Cross-Site Request Forgery Prevention Cheat Sheet".</li>
+<li>e-Gov法令検索、刑法（第233条、第234条の2）。</li>
+<li>e-Gov法令検索、不正アクセス行為の禁止等に関する法律。</li>
+<li>RFC 9309, "Robots Exclusion Protocol".</li>
+</ol>
+<p class="small">図表の数値（テスト件数、各種の上限値）は、開発時点のリポジトリの記録に基づく。仕様が変わった場合は、本稿を更新する。ガードレールの状態は、管理画面のスクリーンショット時点のものである。</p>
+
+</main>
+</body>
+</html>

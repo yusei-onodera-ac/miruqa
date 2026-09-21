@@ -1,0 +1,23 @@
+<%@ page contentType="text/html;charset=UTF-8" pageEncoding="UTF-8" session="false" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<footer class="site-footer">
+  <div class="wrap foot">
+    <div class="foot-main">
+      <img src="${pageContext.request.contextPath}/static/img/logo.png" alt="MiruQA" width="150" height="46">
+      <p class="muted">仕様書から、UIテストを作って、実行する。</p>
+    </div>
+    <div class="foot-links">
+      <a href="${pageContext.request.contextPath}/#features">機能</a>
+      <a href="${pageContext.request.contextPath}/#modes">対象</a>
+      <a href="${pageContext.request.contextPath}/#faq">FAQ</a>
+      <c:if test="${contactEnabled}">
+      <a href="${pageContext.request.contextPath}/contact">お問い合わせ</a>
+      <a href="${pageContext.request.contextPath}/contact/privacy">プライバシーポリシー（案）</a>
+      </c:if>
+    </div>
+  </div>
+  <div class="wrap foot-bottom">
+    <p>© 2026 MiruQA　／　miruqa.com　／　AI HACK 2026 参加作品</p>
+    <p>本ページの内容は、開発中の仕様に基づく予定であり、提供開始時に変更される場合があります。</p>
+  </div>
+</footer>

@@ -1,0 +1,28 @@
+{
+  "measurement": "M3",
+  "planId": "p-m3-fastpath-b677a323",
+  "testCases": ["TC-019(rapid_click /contact)", "TC-031(rapid_click /checkout)"],
+  "note": "同一Plan(macro項目2件のみ)を、AGENT_MACRO_CODE_FASTPATH=0/1で1回ずつ実行して比較。探索フェーズ(exploratory)はfastpathの対象外のため、両方の実行でほぼ同じコストが掛かっている(前後比較には影響しない)。",
+  "before": {
+    "runId": "run-m3-before2-56277",
+    "fastpath": false,
+    "targetItemsLlmCalls": 5,
+    "targetItemsCostUsd": 0.0258,
+    "totalRunLlmCalls": 68,
+    "totalRunCostUsd": 0.1388,
+    "tc019Verdict": "pass",
+    "tc031Verdict": "fail(連打で複数注文が作成された。仕込み#9の再現)"
+  },
+  "after": {
+    "runId": "run-m3-after-56530",
+    "fastpath": true,
+    "targetItemsLlmCalls": 0,
+    "targetItemsCostUsd": 0.0,
+    "totalRunLlmCalls": 60,
+    "totalRunCostUsd": 0.1366,
+    "tc019Verdict": "pass(連打しても注文0件)",
+    "tc031Verdict": "fail(連打によって注文が5件作成された。仕込み#9の再現)"
+  },
+  "targetItemsCoveragePercent": 100,
+  "conclusion": "対象2件(rapid_click)は、コード実行化により、その項目自体のLLM呼び出しが5件→0件、費用が約$0.0258→$0に(削減率100%、実測)。判定結果(pass/fail)はfastpathの有無で変わらず、品質を落とさずに費用を削減できた。ただし全体の実行コストは探索フェーズが支配的なため、Plan全体で見た削減率は小さい(このPlanでは約1.6%)。"
+}

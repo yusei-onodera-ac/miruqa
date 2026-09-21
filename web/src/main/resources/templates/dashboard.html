@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title th:text="'ダッシュボード | ' + ${productName}">ダッシュボード | MiruQA</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="v6">
+  <div class="v6-shell">
+    <div th:replace="~{fragments/shell :: header(current='dashboard')}"></div>
+    <p class="v6-title">ダッシュボード</p>
+    <p class="v6-sub">登録プロジェクトと、直近の実行状況の概要です。</p>
+
+    <div class="v6-panel" style="margin-bottom:20px">
+      <p class="v6-title" style="font-size:15px">プラン・使用量</p>
+      <table class="v6-table">
+        <thead><tr><th>プラン</th><th>本日の使用量</th><th>今月の使用量</th></tr></thead>
+        <tbody>
+          <tr>
+            <td th:text="${planName}"></td>
+            <td class="v6-mono">
+              <span th:text="${'$' + #numbers.formatDecimal(costToday, 1, 4)}"></span>
+              <span class="v6-sub"> / $<span th:text="${#numbers.formatDecimal(dailyLimit, 1, 2)}"></span></span>
+              <span class="v6-mark review" th:if="${nearDailyLimit}">上限に近づいています</span>
+            </td>
+            <td class="v6-mono">
+              <span th:text="${'$' + #numbers.formatDecimal(costThisMonth, 1, 4)}"></span>
+              <span class="v6-sub"> / $<span th:text="${#numbers.formatDecimal(monthlyLimit, 1, 2)}"></span></span>
+              <span class="v6-mark review" th:if="${nearMonthlyLimit}">上限に近づいています</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <table class="v6-table" style="margin-bottom:28px">
+      <thead><tr><th>登録プロジェクト数</th><th>今月の実行回数</th><th>見つかった指摘(直近<span th:text="${#lists.size(recentRuns)}">10</span>件の実行分)</th><th>所有確認が未完了のプロジェクト</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="v6-mono" style="font-size:20px" th:text="${projectCount}">0</td>
+          <td class="v6-mono" style="font-size:20px" th:text="${runsThisMonth}">0</td>
+          <td class="v6-mono" style="font-size:20px" th:text="${totalFindings}">0</td>
+          <td class="v6-mono" style="font-size:20px" th:text="${unverifiedDomainCount}">0</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="v6-note" th:if="${unverifiedDomainCount} > 0" style="margin-bottom:20px">
+      所有確認が未完了のプロジェクトが<span th:text="${unverifiedDomainCount}"></span>件あります。
+      該当のプロジェクト画面から所有確認を完了しないと、診断を開始できません。
+      <a th:href="@{/projects}">プロジェクト一覧を見る</a>
+    </div>
+
+    <p class="v6-title" style="font-size:15px">最近の実行</p>
+    <div class="v6-error" th:if="${workerError}" style="margin-bottom:16px">
+      一部の実行状況を取得できませんでした。ワーカーへの接続を確認し、再読み込みしてください。
+    </div>
+    <table class="v6-table" th:if="${not #lists.isEmpty(recentRuns)}">
+      <thead><tr><th class="v6-nowrap">実行日時(JST)</th><th>対象URL</th><th class="v6-nowrap">状態</th><th class="v6-nowrap">指摘件数</th><th class="v6-nowrap">コスト</th></tr></thead>
+      <tbody>
+        <tr th:each="r : ${recentRuns}" th:data-href="@{'/runs/' + ${r.runId}}">
+          <td class="v6-mono v6-nowrap"><a th:href="@{'/runs/' + ${r.runId}}" th:text="${r.startedAtDisplay}"></a></td>
+          <td class="v6-mono url" th:text="${r.target}"></td>
+          <td class="v6-nowrap">
+            <span th:replace="~{fragments/shell :: runStatusMark(${r.status})}"></span>
+          </td>
+          <td class="v6-mono v6-nowrap" th:text="${r.findings != null ? #lists.size(r.findings) : 0}"></td>
+          <td class="v6-mono v6-nowrap" th:text="${r.costDisplay}"></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="v6-empty" th:if="${#lists.isEmpty(recentRuns) and not workerError}">
+      まだ実行がありません。<a th:href="@{/projects}">プロジェクト</a>から診断を開始してください。
+    </div>
+  </div>
+  <script>
+    document.querySelectorAll("tr[data-href]").forEach(row => {
+      row.addEventListener("click", () => { location.href = row.dataset.href; });
+    });
+  </script>
+</body>
+</html>

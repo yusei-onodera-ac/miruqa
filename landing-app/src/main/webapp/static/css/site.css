@@ -1,0 +1,215 @@
+/* MiruQA Landing — SaaSのプロダクトページの体裁。ロゴの紺とティールに合わせる。CSPのため、インラインのstyleは使わない */
+:root{
+  --navy:#0c2454; --navy2:#123a7a; --teal:#12a3b4; --teal-d:#0d8797;
+  --ink:#0f1b2d; --sub:#4d5b70; --line:#e2e8f0; --band:#f6f8fb; --white:#fff;
+  --bad:#c62828; --rev:#b26a00; --ok:#2b8a5f;
+  --font:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",Meiryo,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:var(--font);color:var(--ink);background:#fff;line-height:1.85;font-size:16px;-webkit-font-smoothing:antialiased}
+img{max-width:100%;height:auto}
+a{color:var(--navy2)}
+.wrap{width:min(1120px,100% - 48px);margin-inline:auto}
+.narrow{width:min(760px,100% - 48px)}
+.skip{position:absolute;left:-999px;top:8px;background:#fff;padding:8px 12px;z-index:100}
+.skip:focus{left:8px}
+.muted{color:var(--sub)}
+.fine{font-size:13px;color:var(--sub);margin:18px 0 0}
+
+/* ヘッダー */
+.site-header{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;justify-content:space-between;height:68px}
+.logo{display:flex;align-items:center}
+.logo img{display:block;height:44px;width:auto}
+.gnav{display:flex;align-items:center;gap:26px}
+.gnav a{color:var(--ink);text-decoration:none;font-size:14px;font-weight:600}
+.gnav a:hover{color:var(--teal-d)}
+.gnav a.btn{color:#fff}
+
+/* ボタン */
+.btn{display:inline-flex;align-items:center;justify-content:center;border-radius:6px;padding:13px 26px;font-weight:700;font-size:15.5px;text-decoration:none;border:1.5px solid transparent;cursor:pointer;font-family:inherit;transition:background .15s,border-color .15s}
+.btn:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #7fb7ff;outline-offset:2px}
+.btn-sm{padding:9px 18px;font-size:14px;background:var(--navy)}
+.btn-sm:hover{background:var(--navy2)}
+.btn-primary{background:var(--navy);color:#fff}
+.btn-primary:hover{background:var(--navy2)}
+.btn-line{background:#fff;color:var(--navy);border-color:#b8c4d6}
+.btn-line:hover{border-color:var(--navy)}
+.btn.is-disabled{background:#d9e0ec;color:#5b6a82;cursor:not-allowed}
+.btn-white{background:#fff;color:var(--navy)}
+.btn-white:hover{background:#eef3fb}
+.btn-outline{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
+.btn-outline:hover{background:rgba(255,255,255,.1)}
+
+/* ヒーロー */
+.hero{padding:72px 0 88px;background:#fff;border-bottom:1px solid var(--line)}
+.hero-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:56px;align-items:center}
+.label{font-size:13px;font-weight:700;color:var(--teal-d);letter-spacing:.04em;margin:0 0 14px}
+h1{font-size:clamp(28px,3.9vw,46px);line-height:1.35;margin:0 0 20px;font-weight:800;letter-spacing:.005em;color:var(--navy)}
+.nb{display:inline-block;white-space:nowrap}
+.h1-sm{font-size:clamp(26px,3.6vw,34px);color:var(--navy);margin:0 0 12px}
+.lead{font-size:16.5px;color:var(--sub);max-width:520px;margin:0}
+.lead b{color:var(--ink)}
+.cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
+.facts{list-style:none;padding:0;margin:26px 0 0;display:grid;gap:6px;font-size:14.5px;color:var(--ink)}
+.facts li{padding-left:22px;position:relative}
+.facts li::before{content:"";position:absolute;left:2px;top:.72em;width:9px;height:5px;border-left:2px solid var(--teal);border-bottom:2px solid var(--teal);transform:rotate(-45deg)}
+
+/* アプリ画面のイメージ（実際の画面の構成に合わせる） */
+.hero-shot{margin:0}
+.app{display:grid;grid-template-columns:150px 1fr;border:1px solid #cfd8e6;border-radius:10px;overflow:hidden;background:#fff;box-shadow:0 30px 60px -30px rgba(12,36,84,.35)}
+.app-side{background:var(--band);border-right:1px solid var(--line);padding:16px 12px;font-size:12.5px}
+.app-brand{font-weight:800;color:var(--navy);margin:0 0 14px;font-size:14px}
+.app-side ul{list-style:none;padding:0;margin:0;display:grid;gap:2px}
+.app-side li{padding:7px 8px;border-radius:4px;color:var(--sub)}
+.app-side li.on{background:#e4ecf7;color:var(--navy);font-weight:700}
+.app-main{padding:16px 18px 18px;min-width:0}
+.app-top{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:14px;font-size:13px}
+.app-top span{color:var(--sub);font-size:12px}
+.app-kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.app-kpi div{border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+.app-kpi span{display:block;font-size:11px;color:var(--sub)}
+.app-kpi b{font-size:20px;line-height:1.3;font-variant-numeric:tabular-nums}
+.app-kpi b.bad{color:var(--bad)}.app-kpi b.rev{color:var(--rev)}
+.app-table{width:100%;border-collapse:collapse;font-size:12.5px;line-height:1.6}
+.app-table th{text-align:left;font-weight:600;color:var(--sub);font-size:11.5px;border-bottom:1px solid var(--line);padding:6px 6px}
+.app-table td{border-bottom:1px solid var(--line);padding:8px 6px;vertical-align:top}
+.app-table td:first-child{white-space:nowrap}
+.sq{display:inline-block;width:9px;height:9px;margin-right:6px;border-radius:1px;vertical-align:0}
+.sq.bad{background:var(--bad)}.sq.rev{background:var(--rev)}.sq.ok{background:var(--ok)}
+.hero-shot figcaption{font-size:12px;color:var(--sub);margin:12px 2px 0}
+
+/* セクション共通 */
+.section{padding:88px 0}
+.band{background:var(--band);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.head{margin-bottom:40px}
+.eyebrow{font-size:13px;font-weight:800;letter-spacing:.14em;color:var(--teal-d);margin:0 0 8px}
+h2{font-size:clamp(24px,3vw,32px);line-height:1.45;margin:0;font-weight:800;color:var(--navy)}
+h3{font-size:18px;line-height:1.6;margin:0 0 8px;color:var(--navy)}
+.h2-sm{font-size:19px;margin:34px 0 8px}
+.no{display:block;font-size:13px;font-weight:800;color:var(--teal-d);letter-spacing:.1em;margin-bottom:6px;font-variant-numeric:tabular-nums}
+
+/* 課題 */
+.cols3{display:grid;grid-template-columns:repeat(3,1fr);border-top:2px solid var(--navy)}
+.col{padding:24px 28px 8px 0}
+.col+.col{padding-left:28px;border-left:1px solid var(--line)}
+.col p{margin:0;color:var(--sub);font-size:15px}
+
+/* 機能（左右交互） */
+.row{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center;padding:36px 0;border-top:1px solid var(--line)}
+.row:first-of-type{border-top:2px solid var(--navy)}
+.row.flip .row-text{order:2}
+.row-text p{margin:0;color:var(--sub)}
+.snip{border:1px solid #cfd8e6;border-radius:8px;background:#fff;padding:16px 18px;box-shadow:0 18px 36px -26px rgba(12,36,84,.4)}
+.snip-h{font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.06em;margin:0 0 10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.snip-f{font-size:12px;color:var(--sub);margin:10px 0 0}
+.log{list-style:none;margin:0;padding:0;font-size:13px}
+.log li{display:flex;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line)}
+.log li.last{border-bottom:0}
+.log b{flex:none;width:20px;height:20px;border-radius:50%;background:#e4ecf7;color:var(--navy);display:grid;place-items:center;font-size:11px}
+.kv{margin:0;font-size:13px}
+.kv div{display:grid;grid-template-columns:56px 1fr;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line)}
+.kv div:last-child{border-bottom:0}
+.kv dt{color:var(--sub)}
+.kv dd{margin:0}
+
+/* 手順・表 */
+.steps{list-style:none;padding:0;margin:0 0 44px;display:grid;grid-template-columns:repeat(3,1fr);gap:28px}
+.steps li{border-top:2px solid var(--navy);padding-top:16px}
+.steps p{margin:0;color:var(--sub);font-size:15px}
+.spec{width:100%;border-collapse:collapse;font-size:15px;line-height:1.75;background:#fff}
+.spec caption{text-align:left;font-weight:800;color:var(--navy);margin-bottom:8px;font-size:15px}
+.spec th,.spec td{border:1px solid var(--line);padding:12px 16px;text-align:left;vertical-align:top}
+.spec th{background:var(--band);font-weight:700;white-space:nowrap;width:1%}
+.spec thead th{background:var(--navy);color:#fff;border-color:var(--navy)}
+.modes td{width:38%}
+
+/* 安全性 */
+.safe-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:2px solid var(--navy);background:#fff}
+.safe{padding:22px 22px 24px;border-bottom:1px solid var(--line)}
+.safe+.safe{border-left:1px solid var(--line)}
+.safe p{margin:0;color:var(--sub);font-size:14.5px}
+
+/* 実測 */
+.kpi-band{display:grid;grid-template-columns:repeat(4,1fr);border-top:2px solid var(--navy);border-bottom:1px solid var(--line)}
+.kpi{padding:26px 22px 24px 0}
+.kpi+.kpi{padding-left:22px;border-left:1px solid var(--line)}
+.kpi b{display:block;font-size:clamp(24px,3vw,34px);line-height:1.25;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums}
+.kpi span{color:var(--sub);font-size:14px}
+
+/* FAQ */
+.faq{border-top:1px solid #cfd8e6;padding:18px 0}
+.faq:last-of-type{border-bottom:1px solid #cfd8e6}
+.faq summary{cursor:pointer;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:16px;color:var(--navy)}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"＋";color:var(--teal-d);font-weight:400}
+.faq[open] summary::after{content:"－"}
+.faq p{margin:12px 0 0;color:var(--sub)}
+
+/* CTA */
+.cta-band{background:var(--navy);color:#fff;padding:72px 0}
+.cta-inner{display:flex;align-items:center;justify-content:space-between;gap:32px;flex-wrap:wrap}
+.cta-inner h2{color:#fff;margin-bottom:8px}
+.cta-inner p{margin:0;color:#c9d6ee;max-width:560px}
+.cta-actions{display:flex;gap:12px;flex-wrap:wrap}
+
+/* フッター */
+.site-footer{background:var(--band);border-top:1px solid var(--line);padding:44px 0 30px}
+.foot{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.foot-main img{display:block;height:40px;width:auto;margin-bottom:8px}
+.foot-main p{margin:0;font-size:14px}
+.foot-links{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.foot-links a{color:var(--sub);font-size:14px;text-decoration:none}
+.foot-links a:hover{color:var(--navy)}
+.foot-bottom{border-top:1px solid var(--line);margin-top:26px;padding-top:16px;font-size:12px;color:var(--sub)}
+.foot-bottom p{margin:2px 0}
+
+/* フォーム・下層ページ */
+.form-page{padding:56px 0 88px}
+.form{margin-top:26px;display:grid;gap:22px}
+.field label{display:block;font-weight:700;margin-bottom:6px;font-size:15px}
+.req,.opt{font-size:11px;font-weight:700;border-radius:3px;padding:1px 7px;margin-left:8px;color:#fff;vertical-align:1px}
+.req{background:var(--bad)}.opt{background:#7d8798}
+input[type=text],input[type=email],select,textarea{width:100%;font:inherit;padding:12px 14px;border:1.5px solid #c5d0e2;border-radius:6px;background:#fff;color:var(--ink)}
+input:focus,select:focus,textarea:focus{border-color:var(--navy2)}
+textarea{resize:vertical}
+.hint{font-size:12.5px;color:var(--sub);margin:6px 0 0}
+.consent{display:flex;gap:10px;align-items:flex-start;font-size:14.5px}
+.consent input{margin-top:6px;width:18px;height:18px}
+.hp{position:absolute;left:-9999px;height:0;overflow:hidden}
+.alert{border:1.5px solid #e0a19c;background:#fff5f4;color:#7a1b14;border-radius:6px;padding:12px 16px;margin:18px 0;font-size:14.5px}
+.refbox{display:inline-block;border:1px solid var(--line);background:var(--band);padding:12px 20px;border-radius:6px;font-size:18px}
+.doc p,.doc li{font-size:15.5px}
+.doc ul{padding-left:1.3em}
+.doc-table{width:100%;border-collapse:collapse;margin:8px 0 6px;font-size:15px}
+.doc-table th,.doc-table td{border:1px solid var(--line);padding:10px 14px;text-align:left}
+.doc-table th{background:var(--band);width:32%}
+
+/* スクロール表示（控えめ） */
+.js .reveal{opacity:0;transform:translateY(10px);transition:opacity .45s ease,transform .45s ease}
+.js .reveal.in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}.js .reveal{opacity:1;transform:none;transition:none}}
+
+/* レスポンシブ */
+@media (max-width:980px){
+  .hero-grid,.row{grid-template-columns:1fr;gap:32px}
+  .row.flip .row-text{order:0}
+  .cols3,.steps,.safe-grid,.kpi-band{grid-template-columns:repeat(2,1fr)}
+  .col,.col+.col{padding:24px 20px 12px 0;border-left:0}
+  .safe+.safe{border-left:0}
+  .kpi+.kpi{border-left:0;padding-left:0}
+  .gnav a:not(.btn){display:none}
+}
+@media (max-width:620px){
+  .section{padding:56px 0}
+  .hero{padding:44px 0 56px}
+  .cols3,.steps,.safe-grid,.kpi-band{grid-template-columns:1fr}
+  .btn{width:100%}
+  .cta-row,.cta-actions{flex-direction:column;width:100%}
+  .app{grid-template-columns:1fr}
+  .app-side{display:none}
+  .app-kpi{grid-template-columns:repeat(2,1fr)}
+  .spec{display:block;overflow-x:auto}
+  .logo img{height:38px}
+}

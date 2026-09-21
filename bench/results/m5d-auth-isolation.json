@@ -1,0 +1,29 @@
+{
+  "measurement": "M5d",
+  "note": "テナント分離・CSRFはJavaテストで自動確認。ログイン連続失敗の制限(T-10)は優先度C(遅れたら削る順)のため今回は未実装・未計測。",
+  "tenant_isolation_tests": [
+    {"class": "TenantIsolationTest", "test": "otherOrgProjectIdIsNotAccessible", "result": "pass"},
+    {"class": "TenantIsolationTest", "test": "loginPageIsPubliclyAccessibleButProjectsRequireAuth", "result": "pass"},
+    {"class": "ExecutionTenantIsolationTest", "test": "(実行履歴・指摘の他組織アクセス拒否、複数テスト)", "result": "pass"},
+    {"class": "ProjectControllerCredentialTest", "test": "deleteProjectRejectsOtherOrganizationsProject", "result": "pass"},
+    {"class": "RunControllerRerunTest", "test": "(他組織のrunIdでの再実行拒否)", "result": "pass"},
+    {"class": "FindingsControllerTest", "test": "(他組織の指摘へのアクセス拒否)", "result": "pass"},
+    {"class": "PlanControllerCasesTest", "test": "(他組織のplanIdへのアクセス拒否)", "result": "pass"},
+    {"class": "JobQueueServiceTest", "test": "(組織ごとの同時実行数上限の分離)", "result": "pass"}
+  ],
+  "csrf_tests": {
+    "class": "CsrfProtectionTest",
+    "count": 13,
+    "tests": [
+      "jobsRequiresCsrf", "planApproveRequiresCsrf", "planResumeRequiresCsrf",
+      "planCasesProposeRequiresCsrf", "planCasesAddRequiresCsrf", "findingsStatusRequiresCsrf",
+      "runApprovalRequiresCsrf", "runStopRequiresCsrf", "runRerunRequiresCsrf",
+      "projectCreateRequiresCsrf", "projectDeleteRequiresCsrf", "signupRequiresCsrf"
+    ],
+    "result": "pass(全件、CSRFトークンなしのPOSTは403、ありは403以外)"
+  },
+  "login_lockout": {
+    "implemented": false,
+    "reason": "L4テストカタログT-10(ログイン連続失敗)は優先度C。「遅れたら削る順」の方針により、ピッチまでの残り時間で未着手。今回は計測せず、その旨のみ記録する。"
+  }
+}

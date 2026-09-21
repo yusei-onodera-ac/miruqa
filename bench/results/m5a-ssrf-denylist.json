@@ -1,0 +1,89 @@
+{
+  "measurement": "M5a",
+  "results": [
+    {
+      "label": "許可ドメイン(SANDBOX_HOSTS)",
+      "netloc": "127.0.0.1:8765",
+      "mode": null,
+      "safe": true,
+      "reason": null
+    },
+    {
+      "label": "プライベートIP直指定",
+      "netloc": "10.0.0.5",
+      "mode": null,
+      "safe": false,
+      "reason": "10.0.0.5 の解決先(10.0.0.5)がプライベートアドレスのため遮断した(SSRF対策)"
+    },
+    {
+      "label": "プライベートIP直指定(モードA)",
+      "netloc": "10.0.0.5",
+      "mode": "local",
+      "safe": true,
+      "reason": null
+    },
+    {
+      "label": "ループバック(許可外ポート)",
+      "netloc": "127.0.0.1:9999",
+      "mode": null,
+      "safe": false,
+      "reason": "127.0.0.1 の解決先(127.0.0.1)がループバックアドレスのため遮断した(SSRF対策)"
+    },
+    {
+      "label": "リンクローカル",
+      "netloc": "169.254.1.1",
+      "mode": null,
+      "safe": false,
+      "reason": "169.254.1.1 の解決先(169.254.1.1)がプライベートアドレスのため遮断した(SSRF対策)"
+    },
+    {
+      "label": "クラウドのメタデータアドレス",
+      "netloc": "169.254.169.254",
+      "mode": null,
+      "safe": false,
+      "reason": "169.254.169.254 の解決先(169.254.169.254)がプライベートアドレスのため遮断した(SSRF対策)"
+    },
+    {
+      "label": "クラウドのメタデータアドレス(モードA)",
+      "netloc": "169.254.169.254",
+      "mode": "local",
+      "safe": false,
+      "reason": "169.254.169.254 の解決先(169.254.169.254)がプライベートアドレスのため遮断した(SSRF対策)"
+    },
+    {
+      "label": ".go.jp拒否リスト",
+      "netloc": "example.go.jp",
+      "mode": null,
+      "safe": false,
+      "reason": "拒否リスト(政府・公共機関等のドメイン: .go.jp)に一致した"
+    },
+    {
+      "label": ".lg.jp拒否リスト",
+      "netloc": "city.example.lg.jp",
+      "mode": null,
+      "safe": false,
+      "reason": "拒否リスト(政府・公共機関等のドメイン: .lg.jp)に一致した"
+    },
+    {
+      "label": "cyberace.co.jp拒否リスト",
+      "netloc": "cyberace.co.jp",
+      "mode": null,
+      "safe": false,
+      "reason": "拒否リスト(審査員・協賛企業等: cyberace.co.jp)に一致した"
+    },
+    {
+      "label": "orcarouter.ai拒否リスト",
+      "netloc": "orcarouter.ai",
+      "mode": null,
+      "safe": false,
+      "reason": "拒否リスト(審査員・協賛企業等: orcarouter.ai)に一致した"
+    },
+    {
+      "label": "DNS再バインディング模擬(存在しないドメイン)",
+      "netloc": "does-not-exist.invalid-tld-xyz123",
+      "mode": null,
+      "safe": false,
+      "reason": "名前解決に失敗した([Errno 8] nodename nor servname provided, or not known)"
+    }
+  ]
+}

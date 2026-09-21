@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}">
+  <meta name="_csrf_header" th:content="${_csrf.headerName}">
+  <title th:text="'実行状況・結果 | ' + ${productName}">実行状況・結果 | MiruQA</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="v6">
+  <div class="v6-shell" style="max-width:1280px">
+    <div th:replace="~{fragments/shell :: header(current='projects')}"></div>
+
+    <nav class="v6-steps">
+      <span class="v6-step done">1. URL・仕様書</span>
+      <span class="v6-step done">2. プラン</span>
+      <span class="v6-step done">3. 項目書の承認</span>
+      <span class="v6-step active" id="stepExec">4. 実行</span>
+      <span class="v6-step" id="stepResult">5. 結果</span>
+    </nav>
+
+    <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; margin-bottom:4px">
+      <p class="v6-title" style="margin-bottom:0">実行状況・結果 <span id="statusBadge" class="v6-mark info">読み込み中</span></p>
+      <span>
+        <button class="v6-btn secondary" id="stopBtn" onclick="stopRun()">実行を停止</button>
+        <button class="v6-btn secondary" id="rerunBtn" onclick="rerunRun()" style="display:none">同じ項目書で再実行</button>
+      </span>
+    </div>
+    <p class="v6-sub" id="metaLine">対象: 読み込み中… / プラン: 読み込み中…</p>
+
+    <div id="connError" class="v6-error" style="display:none"></div>
+    <div id="budgetBanner" class="v6-error" style="display:none"></div>
+
+    <table class="v6-table v6-stats-table" style="margin-bottom:20px">
+      <thead><tr><th>合格</th><th>不合格</th><th>要確認</th><th>カバレッジ</th><th>High重大度</th><th>コスト(USD)</th></tr></thead>
+      <tbody><tr id="kpiRow"><td><span class="v6-skeleton"></span></td><td><span class="v6-skeleton"></span></td><td><span class="v6-skeleton"></span></td><td><span class="v6-skeleton"></span></td><td><span class="v6-skeleton"></span></td><td><span class="v6-skeleton"></span></td></tr></tbody>
+    </table>
+
+    <div id="progressBox" class="v6-panel" style="margin-bottom:20px">
+      <div id="progressLabel" class="v6-sub" style="margin-bottom:8px">項目書を実行しています…</div>
+      <div style="height:6px; background:var(--rule); border-radius:3px; overflow:hidden">
+        <div id="progressFill" style="height:100%; width:0%; background:var(--v6-primary)"></div>
+      </div>
+    </div>
+
+    <div id="approvalsSection"></div>
+
+    <nav class="v6-tabs" id="tabs">
+      <button type="button" class="current" data-tab="findings">不具合票</button>
+      <button type="button" data-tab="cases">テスト項目(合否)</button>
+      <button type="button" data-tab="exploratory">探索的テスト</button>
+      <button type="button" data-tab="trace">仕様トレーサビリティ</button>
+      <button type="button" data-tab="cost">コスト・モデル</button>
+      <button type="button" data-tab="timeline">タイムライン</button>
+    </nav>
+
+    <section class="v6-tab-panel current" data-panel="findings">
+      <div class="v6-field" style="max-width:200px; margin:16px 0">
+        <select id="findingOriginFilter">
+          <option value="">すべて</option>
+          <option value="scripted">項目書</option>
+          <option value="exploratory">探索</option>
+        </select>
+      </div>
+      <div id="findingsBox"><p class="v6-empty">まだありません。実行が始まると、ここに表示されます。</p></div>
+    </section>
+
+    <section class="v6-tab-panel" data-panel="cases">
+      <table class="v6-table">
+        <thead><tr><th class="v6-nowrap">ID</th><th style="min-width:10em">観点</th><th class="v6-nowrap">危険度</th><th class="v6-nowrap">対象</th><th style="min-width:14em">タイトル</th><th class="v6-nowrap">判定</th><th>実際の観測</th></tr></thead>
+        <tbody id="caseRows"></tbody>
+      </table>
+    </section>
+
+    <section class="v6-tab-panel" data-panel="exploratory">
+      <div class="v6-panel" style="margin-bottom:16px">
+        <b>チャーター:</b> <span id="charterText" class="v6-sub" style="margin:0">(まだありません)</span>
+      </div>
+      <div id="suspicionsBox"><p class="v6-empty">まだ記録がありません。探索的テストが始まると、ここに表示されます。</p></div>
+    </section>
+
+    <section class="v6-tab-panel" data-panel="trace">
+      <table class="v6-table">
+        <thead><tr><th>仕様項目ID</th><th>内容</th><th>実施状況</th></tr></thead>
+        <tbody id="traceRows"><tr><td colspan="3" class="v6-sub">読み込み中…</td></tr></tbody>
+      </table>
+    </section>
+
+    <section class="v6-tab-panel" data-panel="cost">
+      <p class="v6-sub" id="costTotalsLine">読み込み中…</p>
+      <p class="v6-title" style="font-size:14px">モデル別(このRunの実行分のみ)</p>
+      <table class="v6-table" style="margin-bottom:20px">
+        <thead><tr><th>モデル</th><th>コスト(USD)</th></tr></thead>
+        <tbody id="costRows"></tbody>
+      </table>
+      <p class="v6-title" style="font-size:14px">目的別(仕様抽出・項目書生成・チャーター・実行・探索を合算。runs/ledger.jsonl実測)</p>
+      <table class="v6-table">
+        <thead><tr><th>目的(purpose)</th><th>件数</th><th>即時コスト</th><th>確定コスト</th><th>エラー</th></tr></thead>
+        <tbody id="costPurposeRows"><tr><td colspan="5" class="v6-sub">読み込み中…</td></tr></tbody>
+      </table>
+    </section>
+
+    <section class="v6-tab-panel" data-panel="timeline">
+      <div id="timelineBox"><p class="v6-empty">まだありません。実行が始まると、ここに表示されます。</p></div>
+    </section>
+
+    <p class="v6-title" style="font-size:15px; margin-top:32px">レポート(単一HTML・リプレイ可能)</p>
+    <div id="reportBox"><p class="v6-sub">実行が完了すると、ここにレポートへのリンクが表示されます。</p></div>
+  </div>
+
+<div class="drawer-overlay" id="drawerOverlay" onclick="if(event.target===this) closeDrawer()">
+  <div class="drawer">
+    <button class="close-btn" onclick="closeDrawer()">×</button>
+    <div id="drawerContent"></div>
+  </div>
+</div>
+
+<script th:inline="javascript">
+const runId = /*[[${runId}]]*/ "";
+let stopped = false;
+let pollDelay = 1500;
+let planCasesById = {};
+let planTotalCases = null;
+let specItemsById = {};
+let lastRun = null;
+
+function esc(s) {
+  return (s ?? "").toString().replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+// 観点コードの日本語名(日本のQA現場の慣習で、コードと併記する。定義の正はagent/perspectives.py)
+const PERSPECTIVE_LABELS = {
+  "P-FUNC": "機能(正常系・異常系・境界値・同値分割)", "P-FLOW": "画面遷移・状態遷移",
+  "P-INPUT": "入力検証", "P-TEXT": "表示・文言", "P-LINK": "リンク・画像",
+  "P-UX": "ユーザビリティ", "P-A11Y": "アクセシビリティ", "P-SEC": "セキュリティ・堅牢性",
+  "P-PERF": "表示速度", "P-RESP": "レスポンシブ",
+};
+function perspectiveLabel(code) {
+  if (!code) return "—";
+  const label = PERSPECTIVE_LABELS[code];
+  return label ? `${code} ${label}` : code;
+}
+function confidenceLabel(c) { return c === "confirmed" ? "確認済み" : "要確認"; }
+function verdictLabel(v) {
+  return {pass: "合格", fail: "不合格", needs_review: "要確認", not_run: "未実施"}[v] || (v || "-");
+}
+
+document.querySelectorAll("#tabs button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#tabs button").forEach(b => b.classList.remove("current"));
+    document.querySelectorAll(".v6-tab-panel").forEach(p => p.classList.remove("current"));
+    btn.classList.add("current");
+    document.querySelector('.v6-tab-panel[data-panel="' + btn.dataset.tab + '"]').classList.add("current");
+  });
+});
+
+function openDrawer(html) {
+  document.getElementById("drawerContent").innerHTML = html;
+  document.getElementById("drawerOverlay").classList.add("open");
+}
+function closeDrawer() { document.getElementById("drawerOverlay").classList.remove("open"); }
+
+function badgeFor(status, outcome) {
+  if (status === "completed" && outcome === "success") return ["pass", "完了"];
+  if (status === "failed") return ["fail", "失敗"];
+  if (status === "waiting_approval") return ["review", "承認待ち"];
+  if (status === "running") return ["review", "実行中"];
+  if (status === "queued") return ["review", "待機中"];
+  if (status === "cancelled" || status === "interrupted") return ["review", status === "cancelled" ? "停止" : "中断"];
+  return ["info", status || "不明"];
+}
+
+function loadPlanOnce(planId) {
+  if (!planId || planTotalCases !== null) return Promise.resolve();
+  return fetch(`/plans/${planId}/status.json`)
+    .then(r => r.ok ? r.json() : null)
+    .then(plan => {
+      if (!plan) return;
+      planTotalCases = (plan.testCases || []).length;
+      (plan.testCases || []).forEach(c => { planCasesById[c.id] = c; });
+      const specIds = plan.specIds || [];
+      return Promise.all(specIds.map(sid => fetch(`/specs/${sid}.json`).then(r => r.ok ? r.json() : null)))
+        .then(specs => {
+          (specs || []).filter(Boolean).forEach(spec => {
+            (spec.items || []).forEach(item => { specItemsById[item.id] = item; });
+          });
+        });
+    })
+    .catch(() => {});
+}
+
+function renderKpis(run) {
+  const cov = run.coverage || {};
+  const specCov = cov.specItems || {};
+  const results = run.testResults || [];
+  const passN = results.filter(r => r.verdict === "pass").length;
+  const failN = results.filter(r => r.verdict === "fail").length;
+  const reviewN = results.filter(r => r.verdict === "needs_review").length;
+  const findings = run.findings || [];
+  const highN = findings.filter(f => f.severity === "High").length;
+  const cost = (run.metrics && run.metrics.costUsd && run.metrics.costUsd.total) || 0;
+  const covPct = specCov.total ? Math.round((specCov.covered / specCov.total) * 100) : null;
+  document.getElementById("kpiRow").innerHTML =
+    `<td>${passN}</td><td>${failN}</td><td>${reviewN}</td>` +
+    `<td>${covPct === null ? "-" : covPct + "%"}</td><td>${highN}</td><td>$${cost.toFixed(4)}</td>`;
+}
+
+function renderProgress(run) {
+  const done = (run.testResults || []).filter(r => r.verdict !== "not_run" || planTotalCases === null).length;
+  const total = planTotalCases ?? (run.testResults || []).length;
+  const box = document.getElementById("progressBox");
+  if (run.status === "completed" || run.status === "failed") { box.style.display = "none"; return; }
+  box.style.display = "block";
+  const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  document.getElementById("progressFill").style.width = pct + "%";
+  const phase = (run.exploratory && run.exploratory.charter) ? "探索的テストを実施中" : "テスト項目書を実施中";
+  document.getElementById("progressLabel").textContent = `${phase}(${done}/${total || "準備中"}件、ステップ${(run.metrics||{}).steps ?? 0})`;
+}
+
+function renderApprovals(approvals) {
+  const box = document.getElementById("approvalsSection");
+  if (!approvals || approvals.length === 0) { box.innerHTML = ""; return; }
+  box.innerHTML = '<p class="v6-title" style="font-size:15px">承認待ち(想定外に発生した操作)</p>' + approvals.map(a => {
+    const action = a.action || {}, verdict = a.verdict || {};
+    return `<div class="v6-panel" style="margin-bottom:12px">
+      <b class="v6-mono">${esc(action.tool)}</b> — ${esc(verdict.reason)}
+      <div class="v6-sub" style="margin:4px 0 0">${esc(JSON.stringify(action.args || {}))}</div>
+      <div style="margin-top:10px">
+        <button class="v6-btn" onclick="decide('${a.approvalId}','approve')">承認する</button>
+        <button class="v6-btn secondary" onclick="decide('${a.approvalId}','reject')">却下する</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+function decide(approvalId, decision) {
+  const csrfToken = document.querySelector('meta[name="_csrf"]').content;
+  const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+  fetch(`/runs/${runId}/approvals/${approvalId}`, {
+    method: "POST",
+    headers: {"Content-Type": "application/x-www-form-urlencoded", [csrfHeader]: csrfToken},
+    body: "decision=" + encodeURIComponent(decision),
+  }).then(() => poll());
+}
+function stopRun() {
+  if (!confirm("実行を停止しますか?次のステップ境界で止まり、それまでの部分結果が残ります。")) {
+    return;
+  }
+  const csrfToken = document.querySelector('meta[name="_csrf"]').content;
+  const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+  document.getElementById("stopBtn").disabled = true;
+  fetch(`/runs/${runId}/stop`, {
+    method: "POST",
+    headers: {[csrfHeader]: csrfToken},
+  }).then(() => poll());
+}
+
+const TERMINAL_RUN_STATUSES = ["completed", "failed", "cancelled"];
+
+function rerunRun() {
+  if (!confirm("同じ承認済みの項目書で、対象を再度診断しますか?新しい実行として結果が作られます。")) {
+    return;
+  }
+  const csrfToken = document.querySelector('meta[name="_csrf"]').content;
+  const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+  const btn = document.getElementById("rerunBtn");
+  btn.disabled = true;
+  fetch(`/runs/${runId}/rerun`, {
+    method: "POST",
+    headers: {[csrfHeader]: csrfToken},
+  })
+    .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(data => { location.href = `/runs/${data.runId}`; })
+    .catch(err => { alert("再実行を開始できませんでした: " + err.message); btn.disabled = false; });
+}
+
+function findingCard(f, idx) {
+  const churn = f.silentChurnRisk ? '<span class="v6-mark review">声なき離脱リスク</span>' : "";
+  const origin = f.origin === "exploratory" ? '<span class="v6-mark info">探索</span>' : '<span class="v6-mark info">項目書</span>';
+  const dupCount = f.duplicateCount || 1;
+  const dup = dupCount > 1 ? `<span class="v6-sub" title="同じ指摘が${dupCount}箇所で検出され統合されました">×${dupCount}箇所</span>` : "";
+  const sevClass = f.severity === "High" ? "fail" : f.severity === "Med" ? "review" : "info";
+  return `<div class="v6-panel" style="margin-bottom:10px; cursor:pointer" onclick="showFindingDrawer(${idx})">
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+      <span class="v6-mono v6-sub">${esc(perspectiveLabel(f.perspective))}</span>${origin}
+      <span class="v6-mark ${sevClass}">${esc(f.severity)}</span>
+      <span class="v6-mark ${f.confidence === 'confirmed' ? 'pass' : 'review'}">${esc(confidenceLabel(f.confidence))}</span>${churn}${dup}
+    </div>
+    <p class="v6-title" style="font-size:14px; margin:8px 0 2px">${esc(f.title)}</p>
+    <p class="v6-sub v6-mono url" style="margin:0">${esc(f.url || "")}</p>
+  </div>`;
+}
+function showFindingDrawer(idx) {
+  const f = (lastRun.findings || [])[idx];
+  if (!f) return;
+  const specRefs = (f.specRef || []).map(s => esc(s)).join(", ") || "(なし)";
+  const repro = (f.repro || []).map(s => `<li>${esc(s)}</li>`).join("");
+  openDrawer(`
+    <p class="v6-title">${esc(f.title)}</p>
+    <span class="v6-mono v6-sub">${esc(perspectiveLabel(f.perspective))}</span>
+    <span class="v6-mark ${f.severity === 'High' ? 'fail' : f.severity === 'Med' ? 'review' : 'info'}">${esc(f.severity)}</span>
+    <span class="v6-mark ${f.confidence === 'confirmed' ? 'pass' : 'review'}">${esc(confidenceLabel(f.confidence))}</span>
+    <dl>
+      <dt>期待</dt><dd>${esc(f.expected || "-")}</dd>
+      <dt>実際</dt><dd>${esc(f.actual || f.detail || "-")}</dd>
+      <dt>仕様項目</dt><dd>${specRefs}</dd>
+      <dt>URL</dt><dd>${esc(f.url || "-")}</dd>
+      ${(f.duplicateCount || 1) > 1 ? `<dt>同じ指摘の発生箇所(${f.duplicateCount}件を統合)</dt><dd>${(f.duplicateUrls || []).map(u => esc(u)).join("<br>")}</dd>` : ""}
+      ${(f.duplicateDetails || []).length > 0 ? `<dt>統合された他の文言(${f.duplicateDetails.length}件)</dt><dd>${f.duplicateDetails.map(d => esc(d)).join("<br>")}</dd>` : ""}
+      <dt>再現手順</dt><dd>${repro ? `<ol>${repro}</ol>` : "-"}</dd>
+      <dt>修正案</dt><dd>${esc(f.fix || "-")}</dd>
+    </dl>
+    ${f.testCaseId ? `<a class="v6-btn secondary" href="/runs/${runId}/report" target="_blank">レポートで詳細を見る</a>` : ""}
+  `);
+}
+
+function renderFindings(run) {
+  const filter = document.getElementById("findingOriginFilter").value;
+  const findings = (run.findings || []).filter(f => !filter || f.origin === filter);
+  const box = document.getElementById("findingsBox");
+  box.innerHTML = findings.length ? findings.map((f, i) => findingCard(f, (run.findings || []).indexOf(f))).join("")
+    : '<p class="v6-empty">まだありません。実行が始まると、ここに表示されます。</p>';
+}
+document.getElementById("findingOriginFilter").addEventListener("change", () => { if (lastRun) renderFindings(lastRun); });
+
+function renderCases(run) {
+  const results = run.testResults || [];
+  document.getElementById("caseRows").innerHTML = results.map(r => {
+    const c = planCasesById[r.testCaseId] || {};
+    const danger = c.risk === "needs_approval";
+    return `<tr>
+      <td class="v6-mono v6-nowrap">${esc(r.testCaseId)}</td>
+      <td class="v6-mono">${esc(perspectiveLabel(c.perspective))}</td>
+      <td class="v6-nowrap"><span class="v6-mark ${danger ? 'review' : 'info'}">${danger ? "要承認" : "通常"}</span></td>
+      <td class="v6-mono v6-nowrap">${esc(c.target || "-")}</td>
+      <td>${esc(c.title || "-")}</td>
+      <td class="v6-nowrap"><span class="v6-mark ${r.verdict === 'pass' ? 'pass' : r.verdict === 'fail' ? 'fail' : 'review'}">${esc(verdictLabel(r.verdict))}</span></td>
+      <td class="v6-sub">${esc((r.actual || "").slice(0, 140))}</td>
+    </tr>`;
+  }).join("") || '<tr><td colspan="7" class="v6-sub">まだありません。実行が始まると、ここに表示されます。</td></tr>';
+}
+
+function renderExploratory(run) {
+  const ex = run.exploratory || {};
+  document.getElementById("charterText").textContent = ex.charter || "(まだありません)";
+  const susp = ex.suspicions || [];
+  document.getElementById("suspicionsBox").innerHTML = susp.length ? susp.map(s => `
+    <div class="v6-panel" style="margin-bottom:10px">
+      <p class="v6-sub" style="margin:0 0 4px">${esc(s.url || "")} <span class="v6-mark ${s.reproduced ? 'pass' : 'review'}">${s.reproduced ? '再現済み' : '要確認'}</span></p>
+      <div>${esc(s.text)}</div>
+    </div>`).join("") : '<p class="v6-empty">まだ記録がありません。探索的テストが始まると、ここに表示されます。</p>';
+}
+
+function renderTrace(run) {
+  const cov = (run.coverage || {}).specItems || {};
+  const notCoveredIds = new Set((cov.notCovered || []).map(nc => nc.id));
+  const notCoveredReason = {};
+  (cov.notCovered || []).forEach(nc => { notCoveredReason[nc.id] = nc.reason; });
+  const ids = Object.keys(specItemsById);
+  if (!ids.length) {
+    document.getElementById("traceRows").innerHTML = '<tr><td colspan="3" class="v6-sub">仕様書が指定されていません。</td></tr>';
+    return;
+  }
+  const resultsByCase = {};
+  (run.testResults || []).forEach(r => { resultsByCase[r.testCaseId] = r; });
+  document.getElementById("traceRows").innerHTML = ids.map(id => {
+    const item = specItemsById[id];
+    const covered = !notCoveredIds.has(id);
+    let statusHtml;
+    if (!covered) {
+      statusHtml = `<span class="v6-mark info">未実施</span> <span class="v6-sub">${esc(notCoveredReason[id] || "")}</span>`;
+    } else {
+      const relatedCase = Object.values(planCasesById).find(c => (c.specRef || []).includes(id));
+      const result = relatedCase ? resultsByCase[relatedCase.id] : null;
+      statusHtml = result ? `<span class="v6-mark ${result.verdict === 'pass' ? 'pass' : result.verdict === 'fail' ? 'fail' : 'review'}">${esc(verdictLabel(result.verdict))}</span> (${esc(relatedCase.id)})`
+        : '<span class="v6-mark info">実施予定</span>';
+    }
+    return `<tr><td class="v6-mono">${esc(id)}</td><td>${esc(item.text)}</td><td>${statusHtml}</td></tr>`;
+  }).join("");
+}
+
+function renderCost(run, breakdown) {
+  const byModel = (run.metrics && run.metrics.costUsd && run.metrics.costUsd.byModel) || {};
+  const rows = Object.entries(byModel);
+  document.getElementById("costRows").innerHTML = rows.length
+    ? rows.map(([m, v]) => `<tr><td class="v6-mono">${esc(m)}</td><td class="v6-mono">$${Number(v).toFixed(4)}</td></tr>`).join("")
+    : '<tr><td colspan="2" class="v6-sub">記録なし</td></tr>';
+
+  breakdown = breakdown || {};
+  const byPurpose = breakdown.byPurpose || {};
+  const purposeRows = Object.entries(byPurpose);
+  document.getElementById("costPurposeRows").innerHTML = purposeRows.length
+    ? purposeRows.map(([p, v]) => `<tr><td class="v6-mono">${esc(p)}</td><td>${v.count}</td><td class="v6-mono">$${Number(v.costUsdInline||0).toFixed(4)}</td><td class="v6-mono">${v.costUsdSettled ? "$" + Number(v.costUsdSettled).toFixed(4) : "-"}</td><td>${v.errors||0}</td></tr>`).join("")
+    : '<tr><td colspan="5" class="v6-sub">記録なし</td></tr>';
+
+  if (breakdown.callCount || breakdown.callCount === 0) {
+    const settledNote = breakdown.totalCostUsdSettled > 0
+      ? `確定コスト $${Number(breakdown.totalCostUsdSettled).toFixed(4)}`
+      : "確定コストは未取得(即時値のみ。GET /v1/generationが失敗しているか、まだ反映されていません)";
+    document.getElementById("costTotalsLine").textContent =
+      `このRun(元になったPlanの下見・項目書生成分を含む)の実測: 呼び出し${breakdown.callCount}件・即時コスト合計 $${Number(breakdown.totalCostUsdInline||0).toFixed(4)}・${settledNote}`;
+  } else {
+    document.getElementById("costTotalsLine").textContent = "コスト内訳を取得できませんでした(ワーカーが古い、または応答なし)。";
+  }
+}
+
+function renderBudgetBanner(run) {
+  const box = document.getElementById("budgetBanner");
+  const status = run.budgetStatus;
+  if (status && status.exceeded) {
+    box.style.display = "block";
+    box.innerHTML = `<b>コスト上限に達したため、LLM呼び出しを打ち切りました。</b> ${esc(status.reason || "")}<br>` +
+      `<span class="v6-sub">部分結果のみ記録されています。上限は環境変数 LLM_BUDGET_PER_RUN_USD / LLM_BUDGET_PER_DAY_USD で調整できます。</span>`;
+  } else {
+    box.style.display = "none";
+  }
+}
+
+function renderTimeline(run) {
+  const steps = run.steps || [];
+  document.getElementById("timelineBox").innerHTML = steps.length ? steps.slice(-60).map(s => `
+    <div class="v6-panel" style="margin-bottom:6px; padding:10px 14px">
+      <span class="v6-mono v6-sub">#${s.n}</span> <span class="v6-mono v6-sub">${esc(s.phase || "")}</span>
+      ${s.testCaseId ? `<span class="v6-mono v6-sub">${esc(s.testCaseId)}</span>` : ""}
+      <span class="v6-sub">${esc((s.observation||{}).url || "")}</span>
+    </div>`).join("") : '<p class="v6-empty">まだありません。実行が始まると、ここに表示されます。</p>';
+}
+
+function renderReport(run) {
+  const box = document.getElementById("reportBox");
+  if (run.status === "completed" || run.status === "failed") {
+    box.innerHTML = `<a class="v6-btn" href="/runs/${runId}/report" target="_blank">レポートを開く</a>
+      <a class="v6-btn secondary" href="/runs/${runId}/export.csv">CSVで書き出す</a>
+      <iframe class="report" src="/runs/${runId}/report" style="margin-top:14px; width:100%; height:600px; border:1px solid var(--rule)"></iframe>`;
+  }
+}
+
+function poll() {
+  if (stopped) return;
+  fetch(`/runs/${runId}/status.json`)
+    .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(data => {
+      document.getElementById("connError").style.display = "none";
+      const run = data.run || {};
+      lastRun = run;
+      loadPlanOnce(run.planId).finally(() => {
+        if (run.status === "queued") {
+          document.getElementById("metaLine").textContent = "他の実行が終わるのを待っています(同時に実行できる診断数の上限に達しています)。";
+        } else {
+          document.getElementById("metaLine").textContent = `対象: ${run.target || "取得中…"} / プラン: ${run.planId || "取得中…"} / 仕様書: ${(run.specIds||[]).join(", ") || "(なし)"}`;
+        }
+        const [cls, text] = badgeFor(run.status, run.outcome);
+        const badge = document.getElementById("statusBadge");
+        badge.className = "v6-mark " + cls;
+        badge.textContent = text;
+        if (run.status === "completed" || run.status === "failed") {
+          document.getElementById("stepExec").classList.remove("active"); document.getElementById("stepExec").classList.add("done");
+          document.getElementById("stepResult").classList.add("active");
+          pollDelay = 6000;
+        }
+        document.getElementById("stopBtn").style.display = TERMINAL_RUN_STATUSES.includes(run.status) ? "none" : "";
+        document.getElementById("rerunBtn").style.display = TERMINAL_RUN_STATUSES.includes(run.status) ? "" : "none";
+        if (run.status === "queued") {
+          document.getElementById("progressBox").style.display = "block";
+          const ahead = run.queuedAheadCount || 0;
+          document.getElementById("progressLabel").textContent = ahead > 0
+            ? `待機中です(あと${ahead}件が終わると開始します)`
+            : "待機中です(まもなく開始します)";
+          document.getElementById("progressFill").style.width = "0%";
+          return;
+        }
+        renderKpis(run);
+        renderProgress(run);
+        renderBudgetBanner(run);
+        renderApprovals(data.pendingApprovals);
+        renderFindings(run);
+        renderCases(run);
+        renderExploratory(run);
+        renderTrace(run);
+        renderCost(run, data.costBreakdown);
+        renderTimeline(run);
+        renderReport(run);
+      });
+    })
+    .catch(err => {
+      const box = document.getElementById("connError");
+      box.style.display = "block";
+      box.innerHTML = `<b>状況を取得できませんでした。</b> ${esc(err.message)}<br>自動的に再試行します…`;
+    })
+    .finally(() => setTimeout(poll, pollDelay));
+}
+poll();
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title th:text="${title} + ' | ' + ${productName}">エラー</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="v6">
+  <div class="v6-shell narrow">
+    <p class="v6-title" th:text="${title}">エラー</p>
+    <div class="v6-error" th:text="${message}"></div>
+    <p class="v6-sub" th:if="${retryable}">ワーカーが起動しているか、しばらく待ってから再試行してください。</p>
+    <div style="display:flex; gap:10px; margin-top:16px">
+      <a class="v6-btn" href="/">トップへ戻る</a>
+      <a class="v6-btn secondary" href="javascript:history.back()" th:if="${retryable}">戻ってやり直す</a>
+    </div>
+  </div>
+</body>
+</html>

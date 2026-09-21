@@ -1,0 +1,68 @@
+{
+ "benchId": "bench-20260921T182511Z-613be8",
+ "site": "demo-site@http://127.0.0.1:8765/",
+ "seededFlaws": 14,
+ "sharedPlanId": "p-367e385a",
+ "sharedPlanCaseCount": 30,
+ "sharedPlanBuildCost": {
+  "callCount": 6,
+  "errorCount": 0,
+  "totalCostUsdInline": 0.090394,
+  "totalCostUsdSettled": 0.090394,
+  "totalCostUsdEffective": 0.090394,
+  "byPurpose": {
+   "testcase-gen": {
+    "count": 6,
+    "costUsdInline": 0.090394,
+    "costUsdSettled": 0.090394,
+    "errors": 0,
+    "avgPromptTokens": 780.7,
+    "avgCompletionTokens": 1543.8,
+    "tokenSampleCount": 6
+   }
+  },
+  "byModel": {
+   "gemini-3.5-flash": {
+    "count": 6,
+    "costUsdInline": 0.090394,
+    "costUsdSettled": 0.090394
+   }
+  },
+  "byDay": {
+   "2026-09-21": {
+    "count": 6,
+    "costUsdInline": 0.090394,
+    "costUsdSettled": 0.090394
+   }
+  }
+ },
+ "configs": [
+  {
+   "name": "named-router",
+   "model": "orcarouter/site-inspector",
+   "detection": {
+    "l1l3": "6/8",
+    "l4": "4/6"
+   },
+   "falsePositives": 1,
+   "costUsdInline": 0.500292,
+   "costUsdSettled": 0.500292,
+   "durationSec": 466.6,
+   "runId": "run-f53b136484",
+   "fallbacks": 0,
+   "resolvedModelByPurpose": {
+    "exec": {
+     "gemini-3.5-flash": 96,
+     "(未解決。呼び出し失敗の可能性)": 2
+    },
+    "charter": {
+     "(未解決。呼び出し失敗の可能性)": 1
+    },
+    "exploratory": {
+     "(未解決。呼び出し失敗の可能性)": 1
+    }
+   },
+   "agreementWithBase": null
+  }
+ ]
+}

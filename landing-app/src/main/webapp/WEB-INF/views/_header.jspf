@@ -1,0 +1,17 @@
+<%@ page contentType="text/html;charset=UTF-8" pageEncoding="UTF-8" session="false" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<header class="site-header" id="top">
+  <div class="wrap bar">
+    <a class="logo" href="${pageContext.request.contextPath}/" aria-label="MiruQA トップへ">
+      <img src="${pageContext.request.contextPath}/static/img/logo.png" alt="MiruQA — Autonomous Web QA Agent" width="150" height="46">
+    </a>
+    <nav class="gnav" aria-label="主要メニュー">
+      <a href="${pageContext.request.contextPath}/#features">機能</a>
+      <a href="${pageContext.request.contextPath}/#flow">使い方</a>
+      <a href="${pageContext.request.contextPath}/#modes">対象</a>
+      <a href="${pageContext.request.contextPath}/#safety">安全性</a>
+      <a href="${pageContext.request.contextPath}/#faq">FAQ</a>
+      <c:if test="${contactEnabled}"><a class="btn btn-sm" href="${pageContext.request.contextPath}/contact">お問い合わせ</a></c:if>
+    </nav>
+  </div>
+</header>

@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MiruQA 技術解説書（構成・ロジック・データ・運用）</title>
+<style>
+:root{--paper:#fbfaf6;--ink:#1b1b19;--sub:#55554f;--rule:#c9c6b8;--primary:#1f3a5f;--fail:#b3261e;--pass:#2f6b4f;--review:#9a6700;--shade:#f0eee6;--teal:#0d8797}
+@media (prefers-color-scheme:dark){:root{--paper:#161614;--ink:#ecebe4;--sub:#a9a89f;--rule:#3b3a35;--primary:#8fb0dc;--fail:#f08a80;--pass:#7cc4a0;--review:#e0b35a;--shade:#211f1c;--teal:#5cc6d4}}
+*{box-sizing:border-box}
+html{background:var(--paper)}
+body{margin:0;color:var(--ink);background:var(--paper);font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;line-height:1.9;font-size:16px}
+main{max-width:900px;margin:0 auto;padding:48px 20px 96px}
+h1{font-size:26px;line-height:1.5;margin:0 0 8px}
+h2{font-size:21px;margin:60px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--rule)}
+h3{font-size:17px;margin:34px 0 8px}
+h4{font-size:15px;margin:22px 0 6px}
+p{margin:12px 0}
+.meta,.small,figcaption,caption{color:var(--sub);font-size:13.5px;line-height:1.7}
+.lead{border-top:2px solid var(--ink);border-bottom:1px solid var(--rule);padding:14px 0;margin:24px 0}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;line-height:1.7;font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif}
+caption{text-align:left;margin-bottom:6px;caption-side:top}
+th,td{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:6px 8px;text-align:left;vertical-align:top}
+th{background:var(--shade);font-weight:600}
+td code,p code,li code{font-family:ui-monospace,Menlo,monospace;font-size:.86em;background:var(--shade);padding:1px 4px;border-radius:3px}
+pre{background:var(--shade);border:1px solid var(--rule);padding:12px 14px;overflow:auto;font-size:13px;line-height:1.6;font-family:ui-monospace,Menlo,monospace;border-radius:4px}
+figure{margin:26px 0}
+figure svg{width:100%;height:auto;display:block}
+.ok{color:var(--pass);font-weight:700}.ng{color:var(--fail);font-weight:700}.wt{color:var(--review);font-weight:700}
+.toc{font-size:14.5px;line-height:1.85;columns:2;column-gap:32px;margin:16px 0}
+.toc a{color:var(--primary);text-decoration:none}
+.note{border-left:3px solid var(--primary);padding:4px 12px;margin:16px 0;background:var(--shade);font-size:14.5px}
+@media print{body{font-size:10.5pt}main{max-width:none;padding:0}h2{break-after:avoid}figure,table,pre{break-inside:avoid}}
+@media (max-width:680px){.toc{columns:1}main{padding:28px 16px 64px}}
+</style>
+</head>
+<body>
+<main>
+
+<h1>MiruQA 技術解説書<br><span style="font-size:17px;font-weight:400">構成・ディレクトリ・ユーザーフロー・サービスロジック・データ・運用</span></h1>
+<p class="meta">2026-09-22 版 ／ 対象: 開発ブランチ（Java 114件・Python 152件・LP 47件の自動テストが成功した時点）。セキュリティの詳細は <code>SECURITY-PAPER.html</code>、機能の一覧と実装状況は <code>MIRUQA-FULL-SPEC.md</code> を参照。</p>
+
+<div class="lead">
+本書は、MiruQAの内部を、開発者が読んで理解できるように、図と表で説明する。第1章で全体像、第2章でディレクトリの中身、第3章でユーザーの流れ、第4章で中核のロジック（下見、項目書の生成、実行、判定、承認、費用の管理）、第5章でデータ、第6章でAPI、第7章で設定、第8章でテスト、第9章で運用（ローカルとAWS）、第10章で拡張のしかたを述べる。記述は、コードとテストの記録で確認できた内容に限った。
+</div>
+
+<div class="toc">
+<a href="#s1">1. 全体構成</a><br>
+<a href="#s2">2. ディレクトリと、各ファイルの役割</a><br>
+<a href="#s3">3. ユーザーフロー</a><br>
+<a href="#s4">4. サービスロジック</a><br>
+<a href="#s5">5. データモデル</a><br>
+<a href="#s6">6. API</a><br>
+<a href="#s7">7. 設定</a><br>
+<a href="#s8">8. テスト</a><br>
+<a href="#s9">9. 運用（ローカル・AWS）</a><br>
+<a href="#s10">10. 拡張のしかた</a><br>
+<a href="#s11">11. 既知の制約</a>
+</div>
+
+<!-- ============ 1 ============ -->
+<h2 id="s1">1. 全体構成</h2>
+<p>MiruQAは、4つの実行単位から成る。①Web層（Java）、②ワーカー（Python）、③点検対象の例となるデモサイト、④紹介ページ（LP。Java、別の配備）。Web層は、AIを直接呼ばず、APIキーを持たない。AIの呼び出しと、ブラウザの操作は、すべてワーカーが行う。</p>
+
+<figure>
+<svg viewBox="0 0 860 470" role="img" aria-label="図1 全体構成">
+<defs><marker id="ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#55554f"/></marker></defs>
+<g font-family="-apple-system,Hiragino Sans,sans-serif" font-size="13" fill="currentColor">
+<rect x="10" y="10" width="150" height="70" rx="4" fill="none" stroke="currentColor"/><text x="85" y="40" text-anchor="middle">利用者のブラウザ</text><text x="85" y="60" text-anchor="middle" font-size="11">HTTP :8080</text>
+<rect x="200" y="10" width="270" height="200" rx="4" fill="none" stroke="#1f3a5f" stroke-width="1.6"/>
+<text x="212" y="30" font-weight="700" fill="#1f3a5f">Web層 web/ （Java 21・Spring Boot 4）</text>
+<text x="212" y="52" font-size="11">Controller: 画面・承認・実行の操作</text>
+<text x="212" y="70" font-size="11.5">auth/consent/domain: 認証・同意・所有確認</text>
+<text x="212" y="88" font-size="11.5">queue / usage: ジョブキュー・使用量・上限</text>
+<text x="212" y="106" font-size="11.5">credential: テスト用アカウントの暗号化</text>
+<text x="212" y="124" font-size="11.5">findings / audit: 不具合の状態・監査ログ</text>
+<text x="212" y="142" font-size="11.5">worker: ワーカーAPIのクライアント</text>
+<rect x="212" y="156" width="120" height="40" fill="none" stroke="currentColor"/><text x="272" y="180" text-anchor="middle" font-size="12">DB (H2＋Flyway)</text>
+<rect x="500" y="10" width="330" height="200" rx="4" fill="none" stroke="#1f3a5f" stroke-width="1.6"/>
+<text x="512" y="30" font-weight="700" fill="#1f3a5f">ワーカー agent/ （Python 3.9）</text>
+<text x="512" y="52" font-size="11.5">server: HTTP API（共有の秘密で認証）</text>
+<text x="512" y="70" font-size="11.5">specs / planning: 仕様書の取り込み・下見・項目書</text>
+<text x="512" y="88" font-size="11.5">loop / judging: 実行・コードによる合否判定</text>
+<text x="512" y="106" font-size="11.5">browser / policy / security: 操作・ゲート・SSRF</text>
+<text x="512" y="124" font-size="11.5">llm / ledger / masking: AI呼び出し・台帳・マスク</text>
+<text x="512" y="142" font-size="11.5">perspectives: 観点カタログ</text>
+<rect x="512" y="156" width="150" height="40" fill="none" stroke="currentColor"/><text x="587" y="180" text-anchor="middle" font-size="12">runs/ （JSON・台帳）</text>
+<rect x="500" y="260" width="140" height="60" rx="4" fill="none" stroke="currentColor"/><text x="570" y="288" text-anchor="middle">Chrome</text><text x="570" y="306" text-anchor="middle" font-size="11">Playwright</text>
+<rect x="680" y="260" width="150" height="60" rx="4" fill="none" stroke="#b3261e"/><text x="755" y="284" text-anchor="middle">OrcaRouter</text><text x="755" y="302" text-anchor="middle" font-size="11">→ 上流のAIモデル</text>
+<rect x="500" y="380" width="140" height="60" rx="4" fill="none" stroke="currentColor"/><text x="570" y="404" text-anchor="middle">点検対象</text><text x="570" y="422" text-anchor="middle" font-size="11">開発環境・公開ページ</text>
+<rect x="200" y="380" width="200" height="70" rx="4" fill="none" stroke="#0d8797" stroke-width="1.6"/><text x="300" y="406" text-anchor="middle" fill="#0d8797" font-weight="700">LP landing-app/</text><text x="300" y="424" text-anchor="middle" font-size="11">Java・JSP・サーブレット</text><text x="300" y="440" text-anchor="middle" font-size="11">miruqa.com（AWS EC2）</text>
+<line x1="160" y1="45" x2="200" y2="45" stroke="#55554f" marker-end="url(#ar)"/>
+<line x1="470" y1="70" x2="500" y2="70" stroke="#55554f" marker-end="url(#ar)"/>
+<line x1="570" y1="210" x2="570" y2="260" stroke="#55554f" marker-end="url(#ar)"/>
+<line x1="640" y1="230" x2="700" y2="260" stroke="#55554f" marker-end="url(#ar)"/>
+<line x1="570" y1="320" x2="570" y2="380" stroke="#55554f" marker-end="url(#ar)"/>
+<text x="180" y="38" font-size="10">HTTP</text><text x="485" y="62" font-size="10">HTTP</text>
+</g></svg>
+<figcaption>図1　全体構成。実線の矢印は、呼び出しの向き。LPは、本体とは、別のプロセス・別のサーバーで動く（データも共有しない）。</figcaption>
+</figure>
+
+<table>
+<caption>表1　実行単位と、ポート・技術</caption>
+<tr><th>単位</th><th>技術</th><th>ポート</th><th>状態の保管</th></tr>
+<tr><td>Web層 <code>web/</code></td><td>Java 21、Spring Boot 4.0、Thymeleaf、Spring Security、Spring Data JPA、Flyway、H2（ファイル）</td><td>8080</td><td>DB（組織・プロジェクト・実行・使用量・監査など）</td></tr>
+<tr><td>ワーカー <code>agent/</code></td><td>Python 3.9、標準 <code>http.server</code>、Playwright（Chrome）、openai SDK、pypdf、python-docx</td><td>8770</td><td><code>runs/</code>（計画・仕様書・実行のJSON、台帳、スクリーンショット）</td></tr>
+<tr><td>デモサイト <code>demo-site/</code> <code>demo-site2/</code></td><td>Python 標準 <code>http.server</code></td><td>8765／8766</td><td>メモリ</td></tr>
+<tr><td>LP <code>landing-app/</code></td><td>Java 21、Servlet 6／JSP 3.1／JSTL 3.0、Tomcat 10.1、HikariCP（フォーム有効時のみ）</td><td>8080（本番はCaddyの背後）</td><td>なし（フォーム停止中）。有効時は、PostgreSQL</td></tr>
+</table>
+
+<h3>1.1 設計の原則</h3>
+<ol>
+<li><b>AIの呼び出しは、1か所（<code>agent/llm.py</code>）</b>を通る。予算の確認、台帳への記録、再試行、フォールバックを、ここに集約した。</li>
+<li><b>判定の根拠は、コードで確かめられるもの</b>（リクエスト数、状態確認、画面の差分）を優先する。AIの感想だけでは、「確定」にしない。</li>
+<li><b>危険な操作は、実行の前に、ポリシーゲートを通す</b>（許可ドメイン、回数・間隔の上限、承認の有無）。</li>
+<li><b>認可の決定は、Web層が行い</b>、ワーカーへは、決定の結果（モード）だけを渡す。利用者の入力やAIの出力では、変えられない。</li>
+<li><b>モデルのIDを、コードに固定しない</b>。環境変数（<code>ORCA_MODEL</code>）で指定する。</li>
+</ol>
+
+<!-- ============ 2 ============ -->
+<h2 id="s2">2. ディレクトリと、各ファイルの役割</h2>
+
+<pre>AI_HACK_2026/
+├─ agent/            ワーカー（Python）本体
+├─ checks/           ルールベースの安全網（送料の不一致など）
+├─ report/           HTMLレポートの生成
+├─ bench/            計測のスクリプトと、結果（results/）
+├─ demo-site/        デモサイト1（EC。不具合を14件仕込み）
+├─ demo-site2/       デモサイト2（予約サイト。ログインあり）
+├─ web/              Web層（Java、Spring Boot）
+├─ landing-app/      紹介ページ（Java、JSP・サーブレット）
+├─ scripts/          start-local.sh（ローカルの一括起動）
+├─ runs/             実行結果（サンプルだけをリポジトリに含める）
+├─ docs/             仕様書・解説書・セキュリティ文書・画面写真
+├─ requirements.txt  Pythonの依存
+├─ .env.example      環境変数の見本（値は入れない）
+└─ README.md         始め方</pre>
+
+<h3>2.1 ワーカー <code>agent/</code></h3>
+<table>
+<caption>表2　agent/ の各ファイル</caption>
+<tr><th>ファイル</th><th>行数</th><th>役割</th></tr>
+<tr><td><code>server.py</code></td><td>533</td><td>ワーカーのHTTP API。共有の秘密（HMAC・定数時間比較）で認証。未設定なら起動しない（フェイルクローズド）</td></tr>
+<tr><td><code>specs.py</code></td><td>298</td><td>仕様書の取り込み。txt・md・docx・PDFを節に分割し、AIで <code>SpecItem</code> に分解</td></tr>
+<tr><td><code>planning.py</code></td><td>891</td><td>下見（<code>recon_site</code>）、項目書の生成（<code>generate_test_cases</code>）、自然言語での追加（<code>propose_test_cases</code>／<code>adopt_test_cases</code>）、計画の保存・再開</td></tr>
+<tr><td><code>perspectives.py</code></td><td>168</td><td>観点カタログ（機能・画面遷移・入力・表示・リンク・使いやすさ・アクセシビリティ・セキュリティ・速度・レスポンシブ）。危険度の判定</td></tr>
+<tr><td><code>loop.py</code></td><td>979</td><td>実行エンジン。承認済みの項目書を、項目ごとに実行し、探索的テストを行う。緊急停止の受付</td></tr>
+<tr><td><code>judging.py</code></td><td>272</td><td>コードによる合否判定（二重送信、手順スキップ、価格・数量の改ざん、エラー露出、未エスケープ反射、仕様との金額の不一致、フッターのリンクなど）</td></tr>
+<tr><td><code>browser.py</code></td><td>783</td><td>Playwrightの操作。ツール（クリック・入力・移動など）、能動マクロ、リクエストの記録、読み取り専用モードの強制、ログイン</td></tr>
+<tr><td><code>policy.py</code></td><td>150</td><td>ポリシーゲート。すべての操作を、実行の前に評価（許可ドメイン、上限、承認）</td></tr>
+<tr><td><code>security.py</code></td><td>129</td><td>拒否リスト、SSRF対策（内部アドレス・メタデータアドレスの判定）</td></tr>
+<tr><td><code>llm.py</code></td><td>313</td><td>OrcaRouter経由のAI呼び出し。再試行、フォールバック、確定額の取得</td></tr>
+<tr><td><code>ledger.py</code></td><td>249</td><td>費用の台帳（<code>runs/ledger.jsonl</code>）。予算の確認、集計</td></tr>
+<tr><td><code>masking.py</code></td><td>41</td><td>個人情報のマスク（メール・電話・氏名・住所）</td></tr>
+<tr><td><code>config.py</code></td><td>194</td><td>環境変数の一元管理。モデルIDをコードに書かない。拒否リスト、許可ドメイン</td></tr>
+<tr><td><code>cost_report.py</code></td><td>104</td><td>台帳から、目的別・モデル別・日別の費用を集計</td></tr>
+<tr><td><code>cli.py</code></td><td>106</td><td>HTTP APIが使えないときの、コマンドラインの入口</td></tr>
+<tr><td><code>tests/</code></td><td>17ファイル</td><td>単体・結合テスト（第8章）</td></tr>
+</table>
+
+<h3>2.2 Web層 <code>web/src/main/java/ai/hack2026/web/</code></h3>
+<table>
+<caption>表3　パッケージと、主なクラス</caption>
+<tr><th>パッケージ</th><th>主なクラス</th><th>役割</th></tr>
+<tr><td>（ルート）</td><td><code>JobController</code>、<code>PlanController</code>、<code>RunController</code>、<code>ApprovalController</code>、<code>DashboardController</code>、<code>FindingsController</code>、<code>HistoryController</code>、<code>HealthController</code>、<code>GlobalExceptionHandler</code>、<code>GlobalModelAttributes</code></td><td>画面と、点検の流れ（新規点検、プラン、承認、実行、結果、一覧）。製品名などの共通の値</td></tr>
+<tr><td><code>auth</code></td><td><code>AuthController</code>、<code>SecurityConfig</code>、<code>SignupService</code>、<code>TokenService</code>、<code>PasswordPolicy</code>、<code>AuthEventListener</code>、<code>MockMailService</code>、<code>User</code>／<code>Organization</code>／<code>Membership</code>／<code>Role</code></td><td>サインアップ、ログイン、パスワード再設定、5回失敗で15分ロック、CSRF、模擬メール</td></tr>
+<tr><td><code>project</code></td><td><code>ProjectController</code>、<code>Project</code>、<code>ProjectRepository</code></td><td>プロジェクト（種類は作成後に変更不可）、所有確認・宣言の操作、テスト用アカウントの登録、削除</td></tr>
+<tr><td><code>domain</code></td><td><code>DomainVerificationService</code>、<code>DomainSafetyChecker</code>、<code>HostnameDenylist</code>、<code>Domain</code></td><td>所有確認（<code>/.well-known/</code>）、SSRF対策、拒否リスト、ローカル・公開・遮断の分類</td></tr>
+<tr><td><code>consent</code></td><td><code>ConsentService</code>、<code>Consent</code></td><td>同意の記録（IPはハッシュのみ）</td></tr>
+<tr><td><code>credential</code></td><td><code>CredentialEncryptionService</code>、<code>TestCredential</code></td><td>テスト用アカウントの AES-256-GCM 暗号化（鍵は環境変数。未設定なら失敗）</td></tr>
+<tr><td><code>execution</code></td><td><code>PlanRecord</code>、<code>RunRecord</code>、<code>SpecRecord</code> と各リポジトリ</td><td>計画・実行・仕様書と、組織の対応づけ（分離のため）</td></tr>
+<tr><td><code>queue</code></td><td><code>JobQueueService</code>、<code>JobQueueScheduler</code></td><td>組織あたり同時実行2件のキュー、実行のタイムアウト、再起動時の整理</td></tr>
+<tr><td><code>usage</code></td><td><code>UsageService</code>、<code>UsageEvent</code></td><td>使用量の記録（実行ごとに1回）、組織の日次・月次の上限、80%警告</td></tr>
+<tr><td><code>findings</code></td><td><code>FindingStatus</code>、<code>FindingStatusRecord</code></td><td>不具合の状態（未対応・対応済み・対応しない）と抑制</td></tr>
+<tr><td><code>audit</code></td><td><code>AuditService</code>、<code>AuditLog</code></td><td>主要な操作の記録</td></tr>
+<tr><td><code>logging</code></td><td><code>OrgMdcInterceptor</code>、<code>WebMvcLoggingConfig</code></td><td>ログに、組織ID・ユーザーID・実行IDを付与</td></tr>
+<tr><td><code>worker</code></td><td><code>WorkerClient</code>、<code>WorkerApiException</code>、<code>WorkerUnavailableException</code></td><td>ワーカーAPIのクライアント（タイムアウト、認証ヘッダー、停止時の扱い）</td></tr>
+<tr><td><code>util</code></td><td><code>RunDisplay</code>、<code>FindingFingerprint</code>、<code>PerspectiveLabels</code>、<code>DisplayFormat</code></td><td>表示用の整形、不具合の指紋（重複・抑制の判定）</td></tr>
+</table>
+<p>画面（<code>resources/templates/</code>）: <code>index</code>（新規点検）、<code>plan</code>、<code>run</code>、<code>findings</code>、<code>history</code>、<code>dashboard</code>、<code>project/</code>（一覧・詳細・新規・オンボーディング）、<code>auth/</code>（ログイン・サインアップ・再設定）、<code>fragments/shell</code>（共通の枠）。DBのマイグレーションは、<code>resources/db/migration/V1〜V10</code>（第5章）。</p>
+
+<h3>2.3 紹介ページ <code>landing-app/</code></h3>
+<table>
+<caption>表4　landing-app/ の構成（値・エンティティ・リポジトリ・サービス・コントローラの5層）</caption>
+<tr><th>場所</th><th>内容</th></tr>
+<tr><td><code>value/</code></td><td>値オブジェクト: <code>Email</code>、<code>PersonName</code>、<code>CompanyName</code>、<code>MessageText</code>、<code>InquiryCategory</code>（生成時に検証）</td></tr>
+<tr><td><code>entity/</code></td><td><code>Inquiry</code>、<code>Feature</code>、<code>PainPoint</code>、<code>Faq</code>、<code>MeasuredResult</code></td></tr>
+<tr><td><code>repository/</code></td><td><code>InquiryRepository</code>（JDBC実装。PostgreSQL／H2）、<code>ContentRepository</code>（固定の内容）</td></tr>
+<tr><td><code>service/</code></td><td><code>InquiryService</code>（検証・同意・回数制限・保存）、<code>LandingService</code>、<code>CsrfTokenService</code>（署名つき・期限つき）、<code>RateLimiter</code></td></tr>
+<tr><td><code>controller/</code></td><td>サーブレット: <code>LandingServlet</code>、<code>ContactServlet</code>、<code>ThanksServlet</code>、<code>PrivacyServlet</code>、<code>HealthServlet</code>、<code>ErrorServlet</code>。フィルター: <code>SecurityHeadersFilter</code></td></tr>
+<tr><td><code>config/</code></td><td><code>AppConfig</code>（環境変数）、<code>AppContextListener</code>（起動時の組み立て）</td></tr>
+<tr><td><code>webapp/WEB-INF/views/</code></td><td>JSP（<code>index</code>、<code>contact</code>、<code>thanks</code>、<code>privacy</code>、<code>error</code>）と共通部品（<code>_head</code>、<code>_header</code>、<code>_footer</code>）</td></tr>
+<tr><td><code>webapp/static/</code></td><td><code>css/site.css</code>、<code>js/site.js</code>、<code>img/</code>（ロゴ・ファビコン）</td></tr>
+<tr><td><code>deploy/aws/</code></td><td>AWSの運用案（<code>README.md</code>）、EC2＋SSHの手順・スクリプト（<code>ec2/</code>）</td></tr>
+<tr><td><code>Dockerfile</code>／<code>run-local.sh</code></td><td>コンテナ用（将来）／ローカル起動</td></tr>
+</table>
+
+<h3>2.4 そのほか</h3>
+<table>
+<tr><th>場所</th><th>内容</th></tr>
+<tr><td><code>bench/run_bench.py</code>、<code>bench/results/</code></td><td>同一のデモサイト・同一の項目書で構成を切り替えて比較する計測。結果は、JSONで保存（検出数、誤検知、費用、時間）</td></tr>
+<tr><td><code>checks/rules.py</code></td><td>AIに依存しない安全網（送料の不一致など）</td></tr>
+<tr><td><code>report/html.py</code></td><td>実行結果から、単一のHTMLレポート（マウス軌跡のSVGを含む）を生成</td></tr>
+<tr><td><code>demo-site/</code>、<code>demo-site2/</code></td><td>点検対象の例。<code>spec/</code> にデモ用の仕様書（md・txt・docx・PDF）、<code>well-known/</code> に所有確認用の置き場</td></tr>
+<tr><td><code>runs/</code></td><td><code>plans/</code>（計画）、<code>specs/</code>（仕様書）、<code>run-*/</code>（実行のJSON・スクリーンショット）、<code>ledger.jsonl</code>（台帳）。リポジトリには、<code>runs/samples/</code> だけを含める</td></tr>
+<tr><td><code>docs/screenshots/v0.7/</code></td><td>実際の画面の写真（ログイン、ダッシュボード、プロジェクト、プラン、実行結果、不具合）</td></tr>
+</table>
+
+<!-- ============ 3 ============ -->
+<h2 id="s3">3. ユーザーフロー</h2>
+
+<figure>
+<svg viewBox="0 0 860 300" role="img" aria-label="図2 利用者の流れ">
+<g font-family="-apple-system,Hiragino Sans,sans-serif" font-size="12" fill="currentColor">
+<rect x="10" y="20" width="118" height="54" fill="none" stroke="currentColor"/><text x="69" y="42" text-anchor="middle">① サインアップ</text><text x="69" y="60" text-anchor="middle" font-size="10.5">規約に同意・メール確認</text>
+<rect x="150" y="20" width="118" height="54" fill="none" stroke="currentColor"/><text x="209" y="42" text-anchor="middle">② ログイン</text><text x="209" y="60" text-anchor="middle" font-size="10.5">5回失敗で15分ロック</text>
+<rect x="290" y="20" width="118" height="54" fill="none" stroke="currentColor"/><text x="349" y="42" text-anchor="middle">③ プロジェクト</text><text x="349" y="60" text-anchor="middle" font-size="10.5">種類を選ぶ（変更不可）</text>
+<rect x="430" y="20" width="118" height="54" fill="none" stroke="currentColor"/><text x="489" y="42" text-anchor="middle">④ 対象の確認</text><text x="489" y="60" text-anchor="middle" font-size="10.5">宣言／所有確認／同意</text>
+<rect x="570" y="20" width="118" height="54" fill="none" stroke="currentColor"/><text x="629" y="42" text-anchor="middle">⑤ 新規点検</text><text x="629" y="60" text-anchor="middle" font-size="10.5">URL＋仕様書（任意）</text>
+<rect x="710" y="20" width="130" height="54" fill="none" stroke="currentColor"/><text x="775" y="42" text-anchor="middle">⑥ プラン</text><text x="775" y="60" text-anchor="middle" font-size="10.5">下見→項目書→追加</text>
+<rect x="10" y="150" width="118" height="54" fill="none" stroke="currentColor"/><text x="69" y="172" text-anchor="middle">⑦ 承認</text><text x="69" y="190" text-anchor="middle" font-size="10.5">項目ごと・危険は一括</text>
+<rect x="150" y="150" width="118" height="54" fill="none" stroke="currentColor"/><text x="209" y="172" text-anchor="middle">⑧ キュー</text><text x="209" y="190" text-anchor="middle" font-size="10.5">同時2件・上限確認</text>
+<rect x="290" y="150" width="118" height="54" fill="none" stroke="currentColor"/><text x="349" y="172" text-anchor="middle">⑨ 実行</text><text x="349" y="190" text-anchor="middle" font-size="10.5">項目書→探索</text>
+<rect x="430" y="150" width="118" height="54" fill="none" stroke="currentColor"/><text x="489" y="172" text-anchor="middle">⑩ 結果</text><text x="489" y="190" text-anchor="middle" font-size="10.5">不具合票・カバレッジ</text>
+<rect x="570" y="150" width="118" height="54" fill="none" stroke="currentColor"/><text x="629" y="172" text-anchor="middle">⑪ 状態管理</text><text x="629" y="190" text-anchor="middle" font-size="10.5">未対応/対応済み/対応しない</text>
+<rect x="710" y="150" width="130" height="54" fill="none" stroke="currentColor"/><text x="775" y="172" text-anchor="middle">⑫ 再実行・書き出し</text><text x="775" y="190" text-anchor="middle" font-size="10.5">同じ項目書・CSV・HTML</text>
+<path d="M128,47 H150 M268,47 H290 M408,47 H430 M548,47 H570 M688,47 H710" stroke="#55554f" fill="none"/>
+<path d="M775,74 V112 H69 V150" stroke="#55554f" fill="none"/>
+<path d="M128,177 H150 M268,177 H290 M408,177 H430 M548,177 H570 M688,177 H710" stroke="#55554f" fill="none"/>
+<text x="20" y="250" font-size="11">上限に達したとき: ⑧で拒否（理由を表示）／実行中はAIの呼び出しを止めて、部分結果で終了。いつでも「停止」できる。</text>
+<text x="20" y="270" font-size="11">読み取り専用の種類（公開ページ）では、④は規約の確認、⑥⑦で、能動テスト・ログインの項目は、作られない。</text>
+</g></svg>
+<figcaption>図2　利用者の流れ（12段階）。</figcaption>
+</figure>
+
+<table>
+<caption>表5　段階ごとの、画面・処理・記録</caption>
+<tr><th>#</th><th>画面（パス）</th><th>処理（責任のある層）</th><th>記録</th></tr>
+<tr><td>①</td><td><code>/signup</code></td><td>組織とownerを作る。パスワードをBCryptでハッシュ化。確認メールは模擬（ファイル出力）</td><td>同意（IPはハッシュ）、監査ログ</td></tr>
+<tr><td>②</td><td><code>/login</code></td><td>Spring Security。連続失敗でロック</td><td>ログイン・ロックの監査ログ</td></tr>
+<tr><td>③</td><td><code>/projects/new</code></td><td>種類（開発環境／公開ページ）を選ぶ。URLと種類が合わなければ拒否</td><td><code>projects.kind</code></td></tr>
+<tr><td>④</td><td><code>/projects/{id}</code></td><td>ローカル: 宣言。公開ステージング: <code>/.well-known/</code> の所有確認＋宣言。公開ページ: 規約とrobots.txtの確認への同意</td><td><code>domains</code>、<code>consents</code></td></tr>
+<tr><td>⑤</td><td><code>/</code></td><td>Web層が、認可（モード）を決めて、ワーカーへ渡す。仕様書は、あれば、取り込む</td><td><code>spec_records</code></td></tr>
+<tr><td>⑥</td><td><code>/plans/{id}</code></td><td>ワーカーが、下見と項目書の生成。文章での追加は、追加案→採用</td><td><code>plan_records</code>、台帳</td></tr>
+<tr><td>⑦</td><td><code>/plans/{id}/approve</code></td><td>承認された項目だけが、実行対象</td><td>監査ログ</td></tr>
+<tr><td>⑧</td><td>（内部）</td><td>キューに積み、空きが出たらワーカーへ。組織の上限を確認</td><td><code>run_records</code></td></tr>
+<tr><td>⑨</td><td><code>/runs/{id}</code></td><td>ワーカーが実行。状態をポーリング</td><td><code>runs/run-*</code>、台帳</td></tr>
+<tr><td>⑩⑪</td><td><code>/runs/{id}</code>、<code>/findings</code></td><td>結果の表示。不具合の状態管理</td><td><code>finding_status</code>、<code>usage_events</code></td></tr>
+<tr><td>⑫</td><td><code>/runs/{id}/rerun</code>、<code>export.csv</code></td><td>同じ承認済みの項目書で、新しい実行をキューへ</td><td>監査ログ</td></tr>
+</table>
+
+<!-- ============ 4 ============ -->
+<h2 id="s4">4. サービスロジック</h2>
+
+<h3>4.1 点検の全体のパイプライン</h3>
+<figure>
+<svg viewBox="0 0 860 450" role="img" aria-label="図3 シーケンス">
+<defs><marker id="a3" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#55554f"/></marker></defs>
+<g font-family="-apple-system,Hiragino Sans,sans-serif" font-size="12" fill="currentColor">
+<text x="70" y="18" text-anchor="middle" font-weight="700">利用者</text><line x1="70" y1="26" x2="70" y2="440" stroke="#c9c6b8"/>
+<text x="240" y="18" text-anchor="middle" font-weight="700">Web層</text><line x1="240" y1="26" x2="240" y2="440" stroke="#c9c6b8"/>
+<text x="430" y="18" text-anchor="middle" font-weight="700">ワーカー</text><line x1="430" y1="26" x2="430" y2="440" stroke="#c9c6b8"/>
+<text x="620" y="18" text-anchor="middle" font-weight="700">点検対象</text><line x1="620" y1="26" x2="620" y2="440" stroke="#c9c6b8"/>
+<text x="790" y="18" text-anchor="middle" font-weight="700">OrcaRouter</text><line x1="790" y1="26" x2="790" y2="440" stroke="#c9c6b8"/>
+<line x1="70" y1="48" x2="240" y2="48" stroke="#55554f" marker-end="url(#a3)"/><text x="155" y="43" text-anchor="middle" font-size="10.5">URL・仕様書（あれば）</text>
+<text x="248" y="72" font-size="10.5">認可を決定（モード・宣言・同意）</text>
+<line x1="240" y1="100" x2="430" y2="100" stroke="#55554f" marker-end="url(#a3)"/><text x="335" y="95" text-anchor="middle" font-size="10.5">計画の作成（認可つき）</text>
+<line x1="430" y1="124" x2="790" y2="124" stroke="#55554f" marker-end="url(#a3)"/><text x="610" y="119" text-anchor="middle" font-size="10.5">仕様の抽出（マスク後）</text>
+<line x1="430" y1="148" x2="620" y2="148" stroke="#55554f" marker-end="url(#a3)"/><text x="525" y="143" text-anchor="middle" font-size="10.5">下見（リンクをたどる。AI不使用）</text>
+<line x1="430" y1="172" x2="790" y2="172" stroke="#55554f" marker-end="url(#a3)"/><text x="610" y="167" text-anchor="middle" font-size="10.5">項目書の生成（マスク後）</text>
+<line x1="240" y1="196" x2="70" y2="196" stroke="#55554f" marker-end="url(#a3)"/><text x="155" y="191" text-anchor="middle" font-size="10.5">プランを表示</text>
+<line x1="70" y1="220" x2="240" y2="220" stroke="#55554f" marker-end="url(#a3)"/><text x="155" y="215" text-anchor="middle" font-size="10.5">承認</text>
+<text x="248" y="244" font-size="10.5">キューへ（同時2件・上限を確認）</text>
+<line x1="240" y1="272" x2="430" y2="272" stroke="#55554f" marker-end="url(#a3)"/><text x="335" y="267" text-anchor="middle" font-size="10.5">実行の開始</text>
+<line x1="430" y1="296" x2="790" y2="296" stroke="#55554f" marker-end="url(#a3)"/><text x="610" y="291" text-anchor="middle" font-size="10.5">操作の選択（項目ごとに）</text>
+<line x1="430" y1="320" x2="620" y2="320" stroke="#55554f" marker-end="url(#a3)"/><text x="525" y="315" text-anchor="middle" font-size="10.5">操作（ゲートを通す）</text>
+<text x="438" y="342" font-size="10.5">コードの根拠で合否を判定</text>
+<line x1="430" y1="368" x2="790" y2="368" stroke="#55554f" marker-end="url(#a3)"/><text x="610" y="363" text-anchor="middle" font-size="10.5">探索の方針・探索（能動マクロは拒否）</text>
+<line x1="240" y1="392" x2="430" y2="392" stroke="#55554f" marker-end="url(#a3)"/><text x="335" y="387" text-anchor="middle" font-size="10.5">状態の問い合わせ（ポーリング）</text>
+<text x="248" y="414" font-size="10.5">終了を検知 → 使用量を1回だけ記録</text>
+<line x1="240" y1="436" x2="70" y2="436" stroke="#55554f" marker-end="url(#a3)"/><text x="155" y="431" text-anchor="middle" font-size="10.5">結果を表示</text>
+</g></svg>
+<figcaption>図3　1回の点検の呼び出しの順序。AIの呼び出しは、ワーカーだけが行う。</figcaption>
+</figure>
+
+<h3>4.2 仕様書の取り込み（<code>specs.py</code>）</h3>
+<ol>
+<li>形式ごとに、コード側で節に分割する（PDFはページ単位、docxは段落スタイル、mdは見出し、txtは番号見出し）。</li>
+<li>各節を、マスクしてから、AI（<code>purpose=spec-extract</code>）で <code>SpecItem</code>（id・本文・節・ページ・種類）に分解する。<code>tool_choice</code> で、構造化された出力を強制する。</li>
+<li>長い仕様書は、分割して処理する（既定で最大40）。表が読めない場合は、警告に記録する。</li>
+<li>仕様書が<b>ない場合</b>は、この工程を飛ばす。項目書の生成は、観点のカタログだけで行う（仕様との照合と、仕様のカバレッジは、仕様書がある場合のみ）。</li>
+</ol>
+
+<h3>4.3 下見（<code>recon_site</code>）</h3>
+<p>Playwrightで、トップからリンクをたどり、<code>SiteMap</code>（ページのURL・タイトル・画面の種類）を作る（AIは使わない。最大12ページ）。画面の種類（top／list／detail／form／cart／checkout／static）は、URLの形とフォームの有無で判定する。開発環境のモードでは、商品ページで「カートに入れる」を押して、決済画面まで進み、決済画面を、記録する（状態を変える操作は、テスト環境の宣言・承認がある範囲だけ。クリック数に上限）。読み取り専用のモードでは、robots.txtを確認し、GETだけで、低速に閲覧する。</p>
+
+<h3>4.4 項目書の生成（<code>generate_test_cases</code>）</h3>
+<figure>
+<svg viewBox="0 0 860 200" role="img" aria-label="図4 項目書の生成">
+<defs><marker id="a4" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#55554f"/></marker></defs>
+<g font-family="-apple-system,Hiragino Sans,sans-serif" font-size="12" fill="currentColor">
+<rect x="10" y="20" width="140" height="60" fill="none" stroke="currentColor"/><text x="80" y="46" text-anchor="middle">仕様項目</text><text x="80" y="64" text-anchor="middle" font-size="10.5">（あれば）</text>
+<rect x="10" y="110" width="140" height="60" fill="none" stroke="currentColor"/><text x="80" y="136" text-anchor="middle">サイトマップ</text><text x="80" y="154" text-anchor="middle" font-size="10.5">画面の種類つき</text>
+<rect x="200" y="60" width="150" height="80" fill="none" stroke="#1f3a5f" stroke-width="1.6"/><text x="275" y="90" text-anchor="middle">観点カタログ</text><text x="275" y="108" text-anchor="middle" font-size="10.5">画面の種類 → 観点</text><text x="275" y="124" text-anchor="middle" font-size="10.5">危険度の判定</text>
+<rect x="400" y="20" width="200" height="60" fill="none" stroke="currentColor"/><text x="500" y="46" text-anchor="middle">AIが項目を生成</text><text x="500" y="64" text-anchor="middle" font-size="10.5">testcase-gen（上限40件）</text>
+<rect x="400" y="110" width="200" height="60" fill="none" stroke="currentColor"/><text x="500" y="136" text-anchor="middle">定型の項目を、コードで生成</text><text x="500" y="154" text-anchor="middle" font-size="10.5">連打・直接アクセス・異常入力・改ざん</text>
+<rect x="650" y="60" width="200" height="80" fill="none" stroke="#1f3a5f" stroke-width="1.6"/><text x="750" y="92" text-anchor="middle">テスト項目書（TestCase）</text><text x="750" y="110" text-anchor="middle" font-size="10.5">観点・手順・期待結果</text><text x="750" y="126" text-anchor="middle" font-size="10.5">危険度・マクロ・origin</text>
+<path d="M150,50 L200,90 M150,140 L200,110 M350,100 L400,52 M350,100 L400,140 M600,50 L650,90 M600,140 L650,112" stroke="#55554f" fill="none" marker-end="url(#a4)"/>
+</g></svg>
+<figcaption>図4　項目書は、AIの生成と、コードによる定型項目の生成の、両方でできる。定型項目は、AIの気まぐれに、検出率を左右されないために、コードで必ず作る。</figcaption>
+</figure>
+
+<table>
+<caption>表6　項目書の性質</caption>
+<tr><th>項目</th><th>内容</th></tr>
+<tr><td><code>TestCase</code> の属性</td><td>id、観点、対象（URL）、仕様参照、前提、手順、期待結果、危険度、マクロ（任意）、<code>origin</code>（ai／scripted／user）</td></tr>
+<tr><td>危険度</td><td>P-SEC（セキュリティ）は、常に要承認。P-FLOWは、決済・注文確定に関わるものだけ要承認</td></tr>
+<tr><td>読み取り専用モードで作る観点</td><td>P-TEXT／P-LINK／P-A11Y／P-UX／P-RESP／P-PERF のみ</td></tr>
+<tr><td>上限で打ち切られたとき</td><td>「続きを生成」（<code>resume_plan</code>）で、続きから作れる</td></tr>
+<tr><td>文章での追加</td><td>入力文は、データとして扱い（指示に従わない）、マスクして、追加案（最大5件）を作る。利用者がON/OFFして採用。<code>origin=user</code>。プランあたりの回数、文字数に上限</td></tr>
+</table>
+
+<h3>4.5 承認とポリシーゲート</h3>
+<figure>
+<svg viewBox="0 0 860 250" role="img" aria-label="図5 ゲート">
+<defs><marker id="a5" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#55554f"/></marker></defs>
+<g font-family="-apple-system,Hiragino Sans,sans-serif" font-size="12" fill="currentColor">
+<rect x="10" y="95" width="120" height="50" fill="none" stroke="currentColor"/><text x="70" y="118" text-anchor="middle">操作の要求</text><text x="70" y="134" text-anchor="middle" font-size="10.5">AIの選択／マクロ</text>
+<rect x="170" y="20" width="200" height="44" fill="none" stroke="#1f3a5f"/><text x="270" y="40" text-anchor="middle">① モード（読み取り専用か）</text><text x="270" y="55" text-anchor="middle" font-size="10.5">GET以外・能動マクロは拒否</text>
+<rect x="170" y="76" width="200" height="44" fill="none" stroke="#1f3a5f"/><text x="270" y="96" text-anchor="middle">② 許可ドメイン・SSRF</text><text x="270" y="111" text-anchor="middle" font-size="10.5">拒否リスト・内部アドレス</text>
+<rect x="170" y="132" width="200" height="44" fill="none" stroke="#1f3a5f"/><text x="270" y="152" text-anchor="middle">③ 能動テストの3条件</text><text x="270" y="167" text-anchor="middle" font-size="10.5">TEST_MODE・宣言・承認済み</text>
+<rect x="170" y="188" width="200" height="44" fill="none" stroke="#1f3a5f"/><text x="270" y="208" text-anchor="middle">④ 上限（回数・間隔・予算）</text><text x="270" y="223" text-anchor="middle" font-size="10.5">最大10回・100ms／費用</text>
+<rect x="420" y="70" width="140" height="56" fill="none" stroke="#2f6b4f"/><text x="490" y="94" text-anchor="middle" fill="#2f6b4f" font-weight="700">allow</text><text x="490" y="112" text-anchor="middle" font-size="10.5">実行する</text>
+<rect x="420" y="140" width="140" height="56" fill="none" stroke="#9a6700"/><text x="490" y="164" text-anchor="middle" fill="#9a6700" font-weight="700">pending_approval</text><text x="490" y="182" text-anchor="middle" font-size="10.5">人の承認を待つ</text>
+<rect x="420" y="200" width="140" height="40" fill="none" stroke="#b3261e"/><text x="490" y="224" text-anchor="middle" fill="#b3261e" font-weight="700">deny</text>
+<text x="590" y="92" font-size="11">判定の記録は、レポートの</text>
+<text x="590" y="108" font-size="11">「ポリシー判定ログ」に出る。</text>
+<text x="590" y="132" font-size="11">AIが「承認済み」と自己申告</text>
+<text x="590" y="148" font-size="11">しても、無効。</text>
+<path d="M130,120 L170,42 M130,120 L170,98 M130,120 L170,154 M130,120 L170,210 M370,42 L420,98 M370,98 L420,98 M370,154 L420,168 M370,210 L420,218" stroke="#55554f" fill="none" marker-end="url(#a5)"/>
+</g></svg>
+<figcaption>図5　ポリシーゲート（<code>agent/policy.py</code>）の評価の順序。「承認の要否」は、項目の危険度と、実行時のボタン（注文確定・送信）の判定の、両方で決まる。</figcaption>
+</figure>
+
+<h3>4.6 実行と判定（<code>loop.py</code>／<code>judging.py</code>）</h3>
+<ol>
+<li>承認済みの項目を、順に実行する。1項目あたり最大8ターン。同じ状態が3回続いたら、詰まりとして記録する。</li>
+<li>観察は、画像ではなく、<b>テキストと操作できる要素の一覧</b>。各ステップの直前に、個人情報をマスクする。</li>
+<li>AIが、ツール（<code>navigate</code>／<code>click</code>／<code>select_option</code>／<code>scroll</code>／<code>get_page_state</code>／<code>finish_test_case</code>）を選ぶ。能動マクロ（<code>rapid_click</code>／<code>navigate_direct</code>／<code>fill_abnormal</code>／<code>override_param</code>）は、P-SECの項目だけ。</li>
+<li>合否は、<code>judging.py</code> が、コードの根拠で判定する。根拠が弱い場合は、<code>needs_review</code>。</li>
+<li>項目書の後に、探索的テスト（最大30ステップ。最低5ステップは、続ける）。能動マクロは、コードで拒否。</li>
+<li>不具合票を作る（観点・重大度・確度・種類・仕様参照・期待と実際・スクリーンショット・再現手順）。完全一致、または、仕様参照・観点・種類・正規化したタイトルが一致するものは、1件に統合。</li>
+</ol>
+
+<table>
+<caption>表7　コードによる合否判定（<code>judging.py</code>）</caption>
+<tr><th>関数</th><th>不具合の例</th><th>根拠</th></tr>
+<tr><td><code>judge_duplicate_submission</code></td><td>連打で、注文が複数件になる</td><td>テスト環境の状態確認（注文件数）、リクエスト数</td></tr>
+<tr><td><code>judge_step_skip</code></td><td>手順を飛ばして、注文が完了する</td><td>状態確認、直接アクセス後の画面</td></tr>
+<tr><td><code>judge_price_tamper</code>／<code>judge_quantity_tamper</code>／<code>judge_price_or_quantity_tamper</code></td><td>価格・数量の改ざんが、サーバーで検証されない</td><td>状態確認（注文の金額・数量の内訳）</td></tr>
+<tr><td><code>judge_error_exposure</code></td><td>スタックトレースなどの内部情報が表示される</td><td>応答本文のパターン</td></tr>
+<tr><td><code>judge_unescaped_reflection</code></td><td>入力した<code>&lt;b&gt;</code>が、タグとして表示される（無害なマーカーのみ使用）</td><td>応答本文で、エスケープの有無</td></tr>
+<tr><td><code>judge_spec_numeric_mismatch</code></td><td>仕様の金額と、画面の表示が一致しない</td><td>仕様項目の数値と、画面の値</td></tr>
+<tr><td><code>judge_footer_link_presence</code></td><td>フッターに、必要なリンクがない</td><td>要素の一覧</td></tr>
+</table>
+
+<h3>4.7 費用の管理</h3>
+<figure>
+<svg viewBox="0 0 860 210" role="img" aria-label="図6 費用の管理">
+<g font-family="-apple-system,Hiragino Sans,sans-serif" font-size="12" fill="currentColor">
+<rect x="10" y="20" width="200" height="56" fill="none" stroke="currentColor"/><text x="110" y="44" text-anchor="middle">llm.call_llm()</text><text x="110" y="62" text-anchor="middle" font-size="10.5">すべてのAI呼び出しの入口</text>
+<rect x="260" y="20" width="180" height="56" fill="none" stroke="#1f3a5f"/><text x="350" y="44" text-anchor="middle">ledger.check_budget</text><text x="350" y="62" text-anchor="middle" font-size="10.5">実行・日・計画・仕様書</text>
+<rect x="490" y="20" width="160" height="56" fill="none" stroke="currentColor"/><text x="570" y="44" text-anchor="middle">OrcaRouter</text><text x="570" y="62" text-anchor="middle" font-size="10.5">再試行・フォールバック</text>
+<rect x="700" y="20" width="150" height="56" fill="none" stroke="currentColor"/><text x="775" y="44" text-anchor="middle">runs/ledger.jsonl</text><text x="775" y="62" text-anchor="middle" font-size="10.5">呼び出しごとに追記</text>
+<path d="M210,48 H260 M440,48 H490 M650,48 H700" stroke="#55554f" fill="none"/>
+<text x="20" y="120" font-size="11.5">超過なら、APIを呼ばずに、部分結果のまま終了（budget_exceeded）。</text>
+<text x="20" y="142" font-size="11.5">台帳は、トークン数・費用（即時値・確定額）・モデル・遅延・再試行を記録。プロンプトの本文は、記録しない。</text>
+<text x="20" y="164" font-size="11.5">確定額は、GET /v1/generation から、別スレッドで取得（失敗しても、実行は続く）。集計は、type=call の行で行う。</text>
+<text x="20" y="186" font-size="11.5">Web層: 実行が終わるたびに usage_events へ1回だけ記録。組織の日次・月次の上限（既定 $3／$30）に達したら、新しい実行を拒否。80%で警告。</text>
+</g></svg>
+<figcaption>図6　費用の記録と上限の、流れ。</figcaption>
+</figure>
+
+<h3>4.8 ジョブキュー（<code>queue/JobQueueService</code>）</h3>
+<table>
+<tr><th>状態</th><th>意味</th><th>遷移のきっかけ</th></tr>
+<tr><td><code>queued</code></td><td>承認済みで、順番待ち</td><td>承認（<code>POST /plans/{id}/approve</code>）、再実行</td></tr>
+<tr><td><code>running</code></td><td>ワーカーへ依頼済み</td><td>組織の実行中が2件未満になり、先頭からディスパッチ（3秒間隔＋承認直後）</td></tr>
+<tr><td><code>completed</code>／<code>failed</code>／<code>cancelled</code>／<code>interrupted</code>／<code>timeout</code></td><td>終了</td><td>ワーカーへの問い合わせで確定。使用量を1回だけ記録。既定900秒を超えると <code>timeout</code>（打ち切り）</td></tr>
+</table>
+<p>Java再起動時は、DB上で <code>queued</code>／<code>running</code> のままの実行を、ワーカーへ問い合わせて整理する。ワーカーが止まっているときは、例外にせず、「まだ実行中」として、次の同期を待つ。DB上の実行ID（安定）と、ワーカー側の実行IDは、分けて持つ。</p>
+
+<h3>4.9 認可の決定（Web層）</h3>
+<table>
+<tr><th>プロジェクトの種類</th><th>URLの分類</th><th>決まるモード</th><th>必要な確認</th></tr>
+<tr><td>開発環境</td><td>ローカル・プライベート</td><td><code>local</code></td><td>テスト環境の宣言</td></tr>
+<tr><td>開発環境</td><td>公開ホスト</td><td><code>staging</code></td><td>所有確認（<code>/.well-known/</code>）＋宣言</td></tr>
+<tr><td>公開ページ</td><td>公開ホスト</td><td><code>readonly</code></td><td>規約・robots.txtの確認への同意</td></tr>
+<tr><td>いずれも</td><td>メタデータのアドレス・拒否リスト</td><td>登録できない</td><td>―</td></tr>
+</table>
+<p>種類は、作成後に変更できない。ワーカーへは、<code>authorization</code>（host・verified・testEnvDeclared・consentId・mode）を、実行のたびに渡す。<code>mode=readonly</code> のとき、ワーカーは、他の判定より前に、読み取り専用の制約（GET以外の遮断、robots.txt、低速、UA、429/503で停止）を、無条件で適用する。</p>
+
+<h3>4.10 AI呼び出しの回復（<code>llm.py</code>）</h3>
+<table>
+<tr><th>事象</th><th>対応</th></tr>
+<tr><td>429</td><td><code>Retry-After</code> を守って待つ（最大20秒）。最大4回</td></tr>
+<tr><td>5xx・タイムアウト（30秒）</td><td>再試行</td></tr>
+<tr><td>不正なJSON・ツール引数</td><td>再試行</td></tr>
+<tr><td>無料枠の拒否</td><td>有料モデルへ、自前で切り替え</td></tr>
+<tr><td>主モデルの失敗</td><td>別ベンダーのモデルへフォールバック（実測: 3/3完走）</td></tr>
+<tr><td><code>guardrail_blocked</code>（400）</td><td>失敗として記録し、そのステップを諦めて、実行は続ける</td></tr>
+</table>
+
+<h3>4.11 不具合の状態管理</h3>
+<p>不具合票は、<code>FindingFingerprint</code>（観点・種類・正規化したタイトルなど）で、実行をまたいで同一視される。状態は、未対応／対応済み／対応しない。「対応しない」は、以降の実行の一覧で、抑制される。一覧は、既定で、未対応のみを表示（「すべて」で全件）。</p>
+
+<!-- ============ 5 ============ -->
+<h2 id="s5">5. データモデル</h2>
+<figure>
+<svg viewBox="0 0 860 470" role="img" aria-label="図7 ER図">
+<g font-family="-apple-system,Hiragino Sans,sans-serif" font-size="11.5" fill="currentColor">
+<rect x="10" y="10" width="150" height="70" fill="none" stroke="currentColor"/><text x="85" y="28" text-anchor="middle" font-weight="700">organizations</text><text x="18" y="46">id, name</text><text x="18" y="62">created_at</text>
+<rect x="210" y="10" width="170" height="86" fill="none" stroke="currentColor"/><text x="295" y="28" text-anchor="middle" font-weight="700">users</text><text x="218" y="46">email, password_hash</text><text x="218" y="62">email_verified_at</text><text x="218" y="78">failed_login_count, locked_until</text>
+<rect x="430" y="10" width="150" height="70" fill="none" stroke="currentColor"/><text x="505" y="28" text-anchor="middle" font-weight="700">memberships</text><text x="438" y="46">user_id, organization_id</text><text x="438" y="62">role</text>
+<rect x="630" y="10" width="200" height="70" fill="none" stroke="currentColor"/><text x="730" y="28" text-anchor="middle" font-weight="700">auth_tokens</text><text x="638" y="46">user_id, purpose, expires_at</text><text x="638" y="62">（メール確認・再設定。1回限り）</text>
+<rect x="10" y="130" width="170" height="86" fill="none" stroke="currentColor"/><text x="95" y="148" text-anchor="middle" font-weight="700">projects</text><text x="18" y="166">organization_id, name</text><text x="18" y="182">target_url</text><text x="18" y="198">kind（開発環境／公開ページ）</text>
+<rect x="230" y="130" width="170" height="86" fill="none" stroke="currentColor"/><text x="315" y="148" text-anchor="middle" font-weight="700">domains</text><text x="238" y="166">organization_id, hostname</text><text x="238" y="182">verification_token, status</text><text x="238" y="198">is_test_environment</text>
+<rect x="450" y="130" width="170" height="86" fill="none" stroke="currentColor"/><text x="535" y="148" text-anchor="middle" font-weight="700">consents</text><text x="458" y="166">user_id, organization_id</text><text x="458" y="182">consent_type, 版</text><text x="458" y="198">target_hostname, ip_hash</text>
+<rect x="670" y="130" width="170" height="86" fill="none" stroke="currentColor"/><text x="755" y="148" text-anchor="middle" font-weight="700">test_credentials</text><text x="678" y="166">project_id, username</text><text x="678" y="182">encrypted_password, iv</text><text x="678" y="198">（平文は保存しない）</text>
+<rect x="10" y="260" width="170" height="86" fill="none" stroke="currentColor"/><text x="95" y="278" text-anchor="middle" font-weight="700">spec_records</text><text x="18" y="296">spec_id, project_id</text><text x="18" y="312">organization_id（所有の対応づけ）</text>
+<rect x="230" y="260" width="170" height="86" fill="none" stroke="currentColor"/><text x="315" y="278" text-anchor="middle" font-weight="700">plan_records</text><text x="238" y="296">plan_id, organization_id</text><text x="238" y="312">project_id</text>
+<rect x="450" y="260" width="170" height="100" fill="none" stroke="currentColor"/><text x="535" y="278" text-anchor="middle" font-weight="700">run_records</text><text x="458" y="296">run_id（安定）, worker_run_id</text><text x="458" y="312">plan_id, project_id, organization_id</text><text x="458" y="328">status, queued_at, started_at, finished_at</text><text x="458" y="344">（キューの状態を兼ねる）</text>
+<rect x="670" y="260" width="170" height="86" fill="none" stroke="currentColor"/><text x="755" y="278" text-anchor="middle" font-weight="700">usage_events</text><text x="678" y="296">run_id（一意）, organization_id</text><text x="678" y="312">cost_usd, call_count</text>
+<rect x="10" y="390" width="170" height="70" fill="none" stroke="currentColor"/><text x="95" y="408" text-anchor="middle" font-weight="700">audit_logs</text><text x="18" y="426">organization_id, user_id</text><text x="18" y="442">action, detail, created_at</text>
+<rect x="230" y="390" width="170" height="70" fill="none" stroke="currentColor"/><text x="315" y="408" text-anchor="middle" font-weight="700">finding_status</text><text x="238" y="426">organization_id, project_id, fingerprint</text><text x="238" y="442">status（既定: 未対応）</text>
+<path d="M160,45 H210 M380,45 H430 M85,80 V130 M295,96 V110 H505 V80 M180,173 H230 M95,216 V260 M315,216 V260 M400,303 H450 M620,303 H670 M535,360 V385 H315 V390" stroke="#55554f" fill="none"/>
+<text x="20" y="376" font-size="10.5" fill="#55554f">図は、主な関連の概略。詳細は、V1〜V10のマイグレーションを参照。</text>
+</g></svg>
+<figcaption>図7　主なテーブルと関連（概略）。すべてのテーブルに、組織のIDがあり、他の組織のデータは、取得できない。</figcaption>
+</figure>
+
+<table>
+<caption>表8　マイグレーション</caption>
+<tr><th>版</th><th>内容</th></tr>
+<tr><td>V1</td><td>organizations、users、memberships、projects、audit_logs</td></tr>
+<tr><td>V2</td><td>auth_tokens（メール確認・パスワード再設定）</td></tr>
+<tr><td>V3</td><td>domains（所有確認・宣言）</td></tr>
+<tr><td>V4</td><td>consents（同意）</td></tr>
+<tr><td>V5</td><td>plan_records、run_records</td></tr>
+<tr><td>V6</td><td>spec_records</td></tr>
+<tr><td>V7</td><td>run_recordsにキューの列を追加、usage_events</td></tr>
+<tr><td>V8</td><td>projectsに種類（kind）を追加</td></tr>
+<tr><td>V9</td><td>finding_status（不具合の状態）</td></tr>
+<tr><td>V10</td><td>test_credentials（暗号化保管）</td></tr>
+</table>
+
+<h3>5.1 ワーカー側のファイル</h3>
+<table>
+<tr><th>パス</th><th>内容</th></tr>
+<tr><td><code>runs/specs/&lt;specId&gt;.json</code></td><td><code>Spec</code>（<code>SpecItem</code> の一覧、警告）</td></tr>
+<tr><td><code>runs/plans/&lt;planId&gt;/plan.json</code></td><td><code>Plan</code>（サイトマップ、項目書、見積り、予算の状況、認可の情報）。パスワードは、含めない</td></tr>
+<tr><td><code>runs/&lt;runId&gt;/run.json</code></td><td><code>Run</code>（項目ごとの結果、探索、不具合票、カバレッジ、指標、ポリシー判定ログ）、スクリーンショット</td></tr>
+<tr><td><code>runs/ledger.jsonl</code></td><td>AI呼び出しの台帳（<code>type=call</code>）と、確定額の追記（<code>type=settlement</code>）</td></tr>
+</table>
+
+<!-- ============ 6 ============ -->
+<h2 id="s6">6. API</h2>
+<h3>6.1 ワーカーAPI（<code>agent/server.py</code>。共有の秘密による認証。既定 :8770）</h3>
+<table>
+<tr><th>メソッド</th><th>パス</th><th>内容</th></tr>
+<tr><td>GET</td><td><code>/api/health</code></td><td>稼働確認</td></tr>
+<tr><td>POST／GET</td><td><code>/api/specs</code>、<code>/api/specs/{id}</code></td><td>仕様書のアップロード（取り込み）／取得</td></tr>
+<tr><td>POST／GET</td><td><code>/api/plans</code>、<code>/api/plans/{id}</code></td><td>計画の作成（下見・項目書。認可つき）／取得</td></tr>
+<tr><td>POST</td><td><code>/api/plans/{id}/resume</code></td><td>打ち切られた生成の続き</td></tr>
+<tr><td>POST</td><td><code>/api/plans/{id}/approve</code></td><td>項目の承認</td></tr>
+<tr><td>POST</td><td><code>/api/plans/{id}/cases/propose</code>、<code>/cases</code></td><td>文章での追加案の生成／採用</td></tr>
+<tr><td>POST／GET</td><td><code>/api/runs</code>、<code>/api/runs/{id}</code></td><td>実行の開始／取得</td></tr>
+<tr><td>GET</td><td><code>/api/runs/{id}/cost</code>、<code>/report</code>、<code>/export</code></td><td>費用・HTMLレポート・書き出し</td></tr>
+<tr><td>POST</td><td><code>/api/runs/{id}/cancel</code></td><td>緊急停止（協調的。次のステップの境界で反映）</td></tr>
+<tr><td>GET／POST</td><td><code>/api/approvals</code>、<code>/api/approvals/{id}</code></td><td>実行中の承認待ちの一覧／応答</td></tr>
+<tr><td>GET</td><td><code>/api/cost/summary</code></td><td>全体の費用集計</td></tr>
+</table>
+<h3>6.2 Web層のルート</h3>
+<table>
+<tr><th>分類</th><th>ルート</th></tr>
+<tr><td>認証</td><td><code>/signup</code>、<code>/verify-email</code>、<code>/login</code>、<code>/forgot-password</code>、<code>/reset-password</code></td></tr>
+<tr><td>画面</td><td><code>/dashboard</code>、<code>/projects</code>、<code>/projects/new</code>、<code>/projects/{id}</code>、<code>/findings</code>、<code>/history</code></td></tr>
+<tr><td>プロジェクト</td><td><code>POST /projects</code>、<code>/projects/{id}/domain/start</code>・<code>check</code>（所有確認）、<code>declare-local</code>（ローカルの宣言）、<code>declare-test-environment</code>（公開ステージングの宣言）、<code>/credentials</code>・<code>/credentials/delete</code>（テスト用アカウント）、<code>/delete</code></td></tr>
+<tr><td>点検</td><td><code>GET /</code>、<code>POST /jobs</code>、<code>/plans/{id}</code>（<code>status.json</code>）、<code>POST /plans/{id}/approve</code>・<code>resume</code>・<code>cases/propose</code>（追加案）・<code>cases</code>（採用）</td></tr>
+<tr><td>実行</td><td><code>/runs/{id}</code>（<code>status.json</code>・<code>report</code>・<code>export.csv</code>）、<code>POST /runs/{id}/approvals/{approvalId}</code>・<code>stop</code>・<code>rerun</code>、<code>/specs/{id}.json</code></td></tr>
+<tr><td>運用</td><td><code>/health</code>（DBとワーカーの状態。認証不要）</td></tr>
+</table>
+<p>すべての変更系のリクエストは、CSRFトークンを要求する。他の組織のIDを指定すると、404になる。</p>
+
+<!-- ============ 7 ============ -->
+<h2 id="s7">7. 設定</h2>
+<table>
+<caption>表9　主な環境変数（値はコミットしない。<code>.env.example</code> に見本）</caption>
+<tr><th>分類</th><th>名前（既定）</th><th>内容</th></tr>
+<tr><td>AI</td><td><code>ORCAROUTER_API_KEY</code>、<code>ORCAROUTER_BASE_URL</code>、<code>ORCA_MODEL</code>、<code>ORCA_FALLBACK_MODELS</code>、<code>ORCA_PAID_FALLBACK_MODEL</code></td><td>ゲートウェイとモデル。モデルIDは、コードに固定しない</td></tr>
+<tr><td>認証・秘密</td><td><code>WORKER_SHARED_SECRET</code>、<code>WORKER_AUTH_DISABLED</code>（0）、<code>CREDENTIAL_ENCRYPTION_KEY</code></td><td>Web層とワーカーの共有の秘密（未設定なら起動しない）、テスト用アカウントの暗号化の鍵（未設定なら失敗）</td></tr>
+<tr><td>安全</td><td><code>ALLOWED_HOSTS</code>、<code>TEST_MODE</code>（0）、<code>L4_MAX_COUNT</code>（10）、<code>L4_MIN_INTERVAL_MS</code>（100）、<code>DENYLIST_HOSTNAME_SUFFIXES</code>、<code>DENYLIST_HOSTNAMES</code></td><td>許可ドメイン、能動テストの上限、拒否リスト</td></tr>
+<tr><td>実行</td><td><code>AGENT_MAX_STEPS</code>、<code>TESTCASE_MAX_CASES</code>（40）、<code>TESTCASE_MAX_STEPS</code>（8）、<code>EXPLORATORY_MAX_STEPS</code>（30）、<code>RECON_MAX_PAGES</code>（12）、<code>AGENT_STEP_TIMEOUT_SEC</code>（30）</td><td>各段階の上限</td></tr>
+<tr><td>費用</td><td><code>LLM_BUDGET_PER_RUN_USD</code>（0.5）、<code>LLM_BUDGET_PER_DAY_USD</code>、<code>USAGE_ORG_DAILY_LIMIT_USD</code>（3.0）、<code>USAGE_ORG_MONTHLY_LIMIT_USD</code>（30.0）</td><td>ワーカーの予算と、組織の上限</td></tr>
+<tr><td>キュー</td><td><code>queue.max-concurrent-per-org</code>（2）、<code>queue.run-timeout-sec</code>（900）</td><td>同時実行数、実行のタイムアウト</td></tr>
+<tr><td>表示</td><td><code>PRODUCT_NAME</code>（MiruQA）</td><td>製品名（画面・メール・レポート）</td></tr>
+<tr><td>読み取り専用</td><td><code>READONLY_MAX_PAGES</code>、<code>READONLY_MIN_REQUEST_INTERVAL_SEC</code>、<code>MIRUQA_VERSION</code>、<code>READONLY_CONTACT_URL</code>、<code>SANDBOX_HOSTS</code>、<code>READONLY_TEST_PUBLIC_HOSTS</code>（テスト専用）</td><td>ページ数・間隔の上限、User-Agentの版と連絡先、自作デモサイトの例外、検証用の別名</td></tr>
+<tr><td>障害注入</td><td><code>FAULT_INJECTION</code>（0）、<code>FAULT_INJECTION_RATE</code>（0.3）</td><td>復旧の実演</td></tr>
+<tr><td>LP</td><td><code>CONTACT_ENABLED</code>（false）、<code>DB_URL</code>・<code>DB_USER</code>・<code>DB_PASSWORD</code>、<code>CSRF_SECRET</code>、<code>IP_HASH_SALT</code>、<code>INQUIRY_RATE_LIMIT_PER_HOUR</code>（5）</td><td>フォームの有効化と、保存先・署名鍵</td></tr>
+</table>
+<p class="small">環境変数は、起動時に一度だけ読まれる。<code>.env</code> やコードを変更したら、ワーカーの再起動が必要。</p>
+
+<!-- ============ 8 ============ -->
+<h2 id="s8">8. テスト</h2>
+<table>
+<caption>表10　自動テスト（2026-09-22 時点）</caption>
+<tr><th>対象</th><th>件数</th><th>主な内容</th></tr>
+<tr><td>Web層（JUnit）</td><td>114</td><td>CSRF、テナント分離、ロック、所有確認、同意、キュー、上限、再実行、暗号化、プロジェクト削除、案の追加</td></tr>
+<tr><td>ワーカー（unittest）</td><td>152</td><td>SSRF・拒否リスト、認可、緊急停止、読み取り専用（GET遮断・robots.txt・低速・429停止）、マスク、判定、重複統合、定型項目、ログイン、平文が残らないこと</td></tr>
+<tr><td>LP（JUnit＋組み込みTomcat）</td><td>47</td><td>値オブジェクト、サービス、リポジトリ（H2）、CSRFトークン、JSPとサーブレットの結合（フォーム有効・停止の両方）、セキュリティヘッダー、Cookieなし</td></tr>
+</table>
+<p>実行: <code>mvn test</code>（<code>web/</code>、<code>landing-app/</code>）、<code>python -m unittest discover -s agent/tests -t .</code>。AIの呼び出しを伴わない（疑似応答の）テストが中心で、実際のAIでの確認は、別に、少額で行った。</p>
+
+<!-- ============ 9 ============ -->
+<h2 id="s9">9. 運用</h2>
+<h3>9.1 ローカル</h3>
+<pre>cp .env.example .env            # ORCAROUTER_API_KEY などを設定（コミットしない）
+scripts/start-local.sh          # デモサイト×2・ワーカー・Web層を、まとめて起動
+# → http://localhost:8080/</pre>
+<p>コードを変更したら、ワーカーの再起動が必要（起動スクリプトを、止めて、もう一度実行）。</p>
+
+<h3>9.2 紹介ページ（AWS）</h3>
+<figure>
+<svg viewBox="0 0 860 190" role="img" aria-label="図8 LPの配備">
+<defs><marker id="a8" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#55554f"/></marker></defs>
+<g font-family="-apple-system,Hiragino Sans,sans-serif" font-size="12" fill="currentColor">
+<rect x="10" y="60" width="120" height="56" fill="none" stroke="currentColor"/><text x="70" y="84" text-anchor="middle">利用者</text><text x="70" y="102" text-anchor="middle" font-size="10.5">miruqa.com</text>
+<rect x="170" y="60" width="150" height="56" fill="none" stroke="currentColor"/><text x="245" y="84" text-anchor="middle">DNS</text><text x="245" y="102" text-anchor="middle" font-size="10.5">A → Elastic IP</text>
+<rect x="360" y="20" width="480" height="140" rx="4" fill="none" stroke="#1f3a5f" stroke-width="1.6"/><text x="372" y="40" fill="#1f3a5f" font-weight="700">EC2（Amazon Linux 2023・x86_64・t3.micro相当）</text>
+<rect x="380" y="60" width="180" height="70" fill="none" stroke="currentColor"/><text x="470" y="84" text-anchor="middle">Caddy :80/:443</text><text x="470" y="102" text-anchor="middle" font-size="10.5">自動HTTPS（Let's Encrypt）</text><text x="470" y="118" text-anchor="middle" font-size="10.5">www → apex の転送</text>
+<rect x="620" y="60" width="200" height="70" fill="none" stroke="currentColor"/><text x="720" y="84" text-anchor="middle">Tomcat 10.1 :8080</text><text x="720" y="102" text-anchor="middle" font-size="10.5">127.0.0.1 のみ・ROOT.war</text><text x="720" y="118" text-anchor="middle" font-size="10.5">Java 21・systemd</text>
+<path d="M130,88 H170 M320,88 H380 M560,95 H620" stroke="#55554f" fill="none" marker-end="url(#a8)"/>
+<text x="20" y="176" font-size="10.5" fill="#55554f">セキュリティグループ: 80・443は全体、22（SSH）は自分のIPだけ。フォーム停止中は、DBを使わない。</text>
+</g></svg>
+<figcaption>図8　LPの配備。本体（Web層・ワーカー）は、ローカルで動かす前提で、AWSには載せていない。</figcaption>
+</figure>
+<table>
+<tr><th>作業</th><th>方法</th></tr>
+<tr><td>初回の導入</td><td><code>landing-app/deploy/aws/ec2/remote-setup.sh</code>（Java 21、Tomcat、Caddyの導入。ダウンロードはチェックサム検査）</td></tr>
+<tr><td>更新</td><td><code>deploy.sh &lt;IP&gt; &lt;鍵&gt;</code>（ビルド＋テスト → 配置 → 再起動 → 疎通確認）</td></tr>
+<tr><td>ログ</td><td><code>journalctl -u tomcat</code>、<code>/opt/tomcat/logs/</code>、<code>/var/log/caddy/access.log</code></td></tr>
+<tr><td>フォームの有効化</td><td>運営者情報・専門家の確認・PostgreSQL（RDS）を用意し、<code>CONTACT_ENABLED=true</code></td></tr>
+</table>
+
+<h3>9.3 観測</h3>
+<ul>
+<li>Web層: <code>GET /health</code>（DBとワーカー）、構造化ログ（組織ID・ユーザーID・実行IDを付与）、監査ログ。</li>
+<li>ワーカー: <code>python -m agent.cost_report</code>（目的別・モデル別・日別の費用）。</li>
+<li>OrcaRouter側: コンソールの請求・リクエストログ（台帳との差は、人が監視）。</li>
+</ul>
+
+<!-- ============ 10 ============ -->
+<h2 id="s10">10. 拡張のしかた</h2>
+<table>
+<tr><th>やりたいこと</th><th>触る場所</th><th>注意</th></tr>
+<tr><td>観点を足す</td><td><code>agent/perspectives.py</code>（データの辞書）</td><td>読み取り専用で許可するかは、<code>READONLY_ALLOWED_PERSPECTIVES</code>。危険度の判定も</td></tr>
+<tr><td>コードでの判定を足す</td><td><code>agent/judging.py</code> に関数を足し、<code>judge()</code> の分岐へ</td><td>根拠が取れないときは、<code>needs_review</code> に倒す。テストを足す</td></tr>
+<tr><td>能動マクロを足す</td><td><code>agent/browser.py</code>（ツール定義と実装）、<code>agent/policy.py</code>（上限・許可）</td><td>P-SEC専用。探索では拒否される。無害な文字列だけを使う</td></tr>
+<tr><td>定型の項目を足す</td><td><code>agent/planning.py</code> の定型項目の生成</td><td>読み取り専用では、作らない</td></tr>
+<tr><td>モデルを変える</td><td><code>.env</code> の <code>ORCA_MODEL</code>、フォールバックの設定</td><td>コードにIDを書かない。変更後にベンチで確認</td></tr>
+<tr><td>画面を足す</td><td><code>web/.../templates/</code> と Controller</td><td>組織のスコープ確認、CSRF、監査ログ</td></tr>
+<tr><td>テーブルを足す</td><td>Flywayの新しい版（V11〜）</td><td>組織IDを持たせ、他組織の取得をテスト</td></tr>
+<tr><td>LPの内容を変える</td><td><code>landing-app/.../StaticContentRepository.java</code>、JSP</td><td>数字は、実測値のみ。CSPのため、インラインのstyle・scriptは使わない</td></tr>
+</table>
+
+<!-- ============ 11 ============ -->
+<h2 id="s11">11. 既知の制約</h2>
+<ul>
+<li>実行のたびに、AIの進め方がばらつく（非決定的）。検出率には、幅がある（基本 6〜7/8、能動テスト 3〜4/6）。</li>
+<li>緊急停止は、協調的（実行中のAI呼び出しが終わるまで反映されない。最短5秒、30秒を超える場合もある）。</li>
+<li>使いやすさ・アクセシビリティは、AIによるチェックリスト判定で、コードでの根拠づけが、限定的。</li>
+<li>個人情報のマスクは、正規表現で、不完全。上流のAI事業者でのデータの扱いは、確認中。</li>
+<li>OrcaRouterのFirewall評価APIは、未接続（自前のポリシーゲートで代替）。ガードレールは、合成して、キーに紐付けたが、動作の確認は、これから。</li>
+<li>Web層のDBは、H2（ファイル）。複数台での運用や、保存時の暗号化は、未対応。</li>
+<li>ジョブ単位のリトライ、公平なスケジューリング、管理者画面は、範囲外。</li>
+<li>スキャン画像のPDF（OCR）は、非対応。</li>
+</ul>
+
+</main>
+</body>
+</html>

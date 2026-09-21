@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="_csrf" th:content="${_csrf.token}">
+  <meta name="_csrf_parameter" th:content="${_csrf.parameterName}">
+  <meta name="_csrf_header" th:content="${_csrf.headerName}">
+  <title th:text="'プラン・項目書 | ' + ${productName}">プラン・項目書 | MiruQA</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="v6">
+  <div class="v6-shell" style="max-width:1280px">
+    <div th:replace="~{fragments/shell :: header(current='projects')}"></div>
+
+    <nav class="v6-steps">
+      <span class="v6-step done">1. URL・仕様書</span>
+      <span class="v6-step active" id="stepPlan">2. プラン</span>
+      <span class="v6-step" id="stepApprove">3. 項目書の承認</span>
+      <span class="v6-step">4. 実行</span>
+      <span class="v6-step">5. 結果</span>
+    </nav>
+
+    <div id="connError" class="v6-error" style="display:none"></div>
+
+    <div id="loadingBox" class="v6-panel">
+      <p><span class="v6-loading"></span>サイトを下見し、テスト項目書を作っています…(仕様書がある場合は数分かかることがあります)</p>
+    </div>
+
+    <div id="failedBox" class="v6-panel" style="display:none">
+      <p class="v6-title" style="font-size:15px">プランの作成に失敗しました</p>
+      <p class="v6-sub" id="failedReason"></p>
+      <a class="v6-btn secondary" href="/">やり直す</a>
+    </div>
+
+    <div id="readyBox" style="display:none">
+      <p class="v6-title">プラン</p>
+      <div id="planNote" class="v6-note" style="display:none"></div>
+      <table class="v6-table v6-stats-table" style="margin-bottom:24px">
+        <thead><tr><th>見つかった画面数</th><th>候補観点数</th><th>テスト項目数</th><th>仕様項目カバー見込み</th></tr></thead>
+        <tbody><tr id="planStatsRow"><td><span class="v6-skeleton"></span></td><td><span class="v6-skeleton"></span></td><td><span class="v6-skeleton"></span></td><td><span class="v6-skeleton"></span></td></tr></tbody>
+      </table>
+
+      <div class="v6-field" id="addCaseBox" style="margin-bottom:24px; border:1px solid var(--rule); border-radius:var(--v6-radius); padding:14px">
+        <label for="addCaseText">項目を自然言語で追加</label>
+        <p class="v6-sub" style="margin:2px 0 8px">下見・項目書の内容をふまえて、確認してほしいことを文章で書いてください(最大1,000字)。AIが追加案を作り、選んだものだけを項目書に加えます。</p>
+        <textarea id="addCaseText" maxlength="1000" rows="2" style="width:100%; font-family:inherit; padding:8px; border:1px solid var(--rule); border-radius:var(--v6-radius)" placeholder="例: 退会ボタンを押した後の確認画面を確かめたい"></textarea>
+        <div style="margin-top:8px; display:flex; gap:10px; align-items:center">
+          <button type="button" class="v6-btn secondary" id="proposeBtn" onclick="proposeCases()">追加案を作る</button>
+          <span class="v6-sub" id="proposeStatus"></span>
+        </div>
+        <div id="proposalBox" style="display:none; margin-top:12px">
+          <div id="proposalRows"></div>
+          <button type="button" class="v6-btn" id="adoptBtn" onclick="adoptCases()" style="margin-top:8px">選んだ追加案を項目書に加える</button>
+        </div>
+      </div>
+
+      <p class="v6-title" style="font-size:15px">テスト項目書<span class="v6-sub" id="caseCount" style="margin:0 0 0 8px; display:inline"></span></p>
+
+      <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:flex-start; margin-bottom:12px; font-size:13px">
+        <div class="v6-field" style="margin-bottom:0">
+          <label for="filterPerspective">観点で絞り込み</label>
+          <select id="filterPerspective"><option value="">すべての観点</option></select>
+        </div>
+        <div style="margin-top:20px">
+          <label style="display:flex; gap:6px; align-items:center"><input type="checkbox" id="includeDanger" style="width:auto"> 承認が必要な項目(連打・改ざんなど)も、まとめて承認する</label>
+        </div>
+        <fieldset style="border:1px solid var(--rule); border-radius:var(--v6-radius); padding:8px 12px; margin:0">
+          <legend style="font-size:12px; color:var(--v6-muted)">表示列</legend>
+          <label style="display:inline-flex; gap:4px; align-items:center; margin-right:12px; font-size:12px"><input type="checkbox" class="col-toggle" data-col="risk" checked style="width:auto"> 危険度</label>
+          <label style="display:inline-flex; gap:4px; align-items:center; margin-right:12px; font-size:12px"><input type="checkbox" class="col-toggle" data-col="target" checked style="width:auto"> 対象</label>
+          <label style="display:inline-flex; gap:4px; align-items:center; margin-right:12px; font-size:12px"><input type="checkbox" class="col-toggle" data-col="precondition" checked style="width:auto"> 前提条件</label>
+          <label style="display:inline-flex; gap:4px; align-items:center; margin-right:12px; font-size:12px"><input type="checkbox" class="col-toggle" data-col="steps" checked style="width:auto"> 手順</label>
+          <label style="display:inline-flex; gap:4px; align-items:center; margin-right:12px; font-size:12px"><input type="checkbox" class="col-toggle" data-col="expected" checked style="width:auto"> 期待結果</label>
+        </fieldset>
+      </div>
+
+      <form id="approveForm" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <div style="overflow-x:auto">
+          <table class="v6-table" id="caseTable">
+            <thead>
+              <tr>
+                <th style="width:24px"></th>
+                <th class="sortable v6-nowrap" data-key="id">項目ID</th>
+                <th class="sortable" data-key="perspective" style="min-width:10em">観点</th>
+                <th class="sortable col-risk v6-nowrap" data-key="risk">危険度</th>
+                <th class="sortable col-target v6-nowrap" data-key="target">対象</th>
+                <th style="min-width:14em">タイトル</th>
+                <th class="col-precondition" style="max-width:10em">前提条件</th>
+                <th class="col-steps">手順</th>
+                <th class="col-expected">期待結果</th>
+                <th class="v6-nowrap">結果</th>
+                <th class="v6-nowrap">エビデンス</th>
+              </tr>
+            </thead>
+            <tbody id="caseRows"></tbody>
+          </table>
+        </div>
+        <p class="v6-sub" style="margin-top:6px">「結果」は、承認して実行するまでは記録されません(この段階では実施していないため)。</p>
+        <button class="v6-btn" type="submit" id="approveBtn" style="margin-top:16px">選んだ項目を承認して実行する</button>
+      </form>
+    </div>
+  </div>
+
+<script th:inline="javascript">
+const planId = /*[[${planId}]]*/ "";
+const csrfParam = /*[[${_csrf.parameterName}]]*/ "";
+const csrfToken = /*[[${_csrf.token}]]*/ "";
+const csrfHeaderName = /*[[${_csrf.headerName}]]*/ "";
+let stopped = false;
+let currentCases = [];
+let sortKey = "id";
+let sortDir = 1;
+
+function esc(s) {
+  return (s ?? "").toString().replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+// 観点コードの日本語名(日本のQA現場の慣習で、コードと併記する。定義の正はagent/perspectives.py)
+const PERSPECTIVE_LABELS = {
+  "P-FUNC": "機能(正常系・異常系・境界値・同値分割)", "P-FLOW": "画面遷移・状態遷移",
+  "P-INPUT": "入力検証", "P-TEXT": "表示・文言", "P-LINK": "リンク・画像",
+  "P-UX": "ユーザビリティ", "P-A11Y": "アクセシビリティ", "P-SEC": "セキュリティ・堅牢性",
+  "P-PERF": "表示速度", "P-RESP": "レスポンシブ",
+};
+function perspectiveLabel(code) {
+  if (!code) return "—";
+  const label = PERSPECTIVE_LABELS[code];
+  return label ? `${code} ${label}` : code;
+}
+
+let latestProposals = [];
+
+function proposeCases() {
+  const text = document.getElementById("addCaseText").value.trim();
+  const statusEl = document.getElementById("proposeStatus");
+  if (!text) {
+    statusEl.textContent = "追加してほしい内容を書いてください。";
+    return;
+  }
+  document.getElementById("proposeBtn").disabled = true;
+  statusEl.innerHTML = '<span class="v6-loading"></span>追加案を作っています…';
+  fetch(`/plans/${planId}/cases/propose`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json", [csrfHeaderName]: csrfToken},
+    body: JSON.stringify({text: text}),
+  })
+    .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(data => {
+      latestProposals = data.proposals || [];
+      const remaining = data.requestsRemaining;
+      statusEl.textContent = latestProposals.length > 0
+        ? `${latestProposals.length}件の追加案ができました。採用するものを選んでください。` + (remaining != null ? `(残り依頼回数: ${remaining})` : "")
+        : "この内容からは、追加案を作れませんでした(既存の項目と重複している可能性があります)。文章を変えて、もう一度お試しください。";
+      renderProposals();
+    })
+    .catch(err => {
+      statusEl.textContent = "追加案を作れませんでした。しばらく待ってから、もう一度お試しください。(" + esc(err.message) + ")";
+    })
+    .finally(() => { document.getElementById("proposeBtn").disabled = false; });
+}
+
+function renderProposals() {
+  const box = document.getElementById("proposalBox");
+  if (latestProposals.length === 0) {
+    box.style.display = "none";
+    return;
+  }
+  box.style.display = "block";
+  document.getElementById("proposalRows").innerHTML = latestProposals.map(p => {
+    const danger = p.risk === "needs_approval";
+    const steps = (p.steps || []).map((s, i) => `${i + 1}. ${esc(s)}`).join("<br>") || "-";
+    return `<label style="display:flex; gap:10px; align-items:flex-start; padding:8px; border:1px solid var(--rule); border-radius:var(--v6-radius); margin-bottom:6px">
+      <input type="checkbox" class="proposal-check" value="${esc(p.id)}" checked style="width:auto; margin-top:3px">
+      <div>
+        <div><b>${esc(p.title)}</b> <span class="v6-sub">${esc(perspectiveLabel(p.perspective))} / 対象: ${esc(p.target)}</span> ${danger ? '<span class="v6-mark review">要承認</span>' : ''}</div>
+        <div class="v6-sub" style="margin-top:2px">手順: ${steps}</div>
+        <div class="v6-sub">期待結果: ${esc(p.expected) || "-"}</div>
+      </div>
+    </label>`;
+  }).join("");
+}
+
+function adoptCases() {
+  const acceptedIds = [...document.querySelectorAll(".proposal-check:checked")].map(cb => cb.value);
+  const statusEl = document.getElementById("proposeStatus");
+  if (acceptedIds.length === 0) {
+    statusEl.textContent = "採用する追加案を、1件以上選んでください。";
+    return;
+  }
+  document.getElementById("adoptBtn").disabled = true;
+  fetch(`/plans/${planId}/cases`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json", [csrfHeaderName]: csrfToken},
+    body: JSON.stringify({acceptedIds: acceptedIds}),
+  })
+    .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(plan => {
+      statusEl.textContent = `${acceptedIds.length}件を項目書に追加しました。`;
+      document.getElementById("addCaseText").value = "";
+      latestProposals = [];
+      renderProposals();
+      renderPlan(plan);
+      renderCases(plan.testCases || []);
+    })
+    .catch(err => {
+      statusEl.textContent = "追加できませんでした。しばらく待ってから、もう一度お試しください。(" + esc(err.message) + ")";
+    })
+    .finally(() => { document.getElementById("adoptBtn").disabled = false; });
+}
+
+function renderPlan(plan) {
+  const noteBox = document.getElementById("planNote");
+  const hasCases = (plan.testCases || []).length > 0;
+  const budgetExceeded = !!(plan.budgetStatus && plan.budgetStatus.exceeded);
+  if (plan.note) {
+    let heading, action;
+    if (budgetExceeded) {
+      heading = `本日のコスト上限に達したため、${(plan.testCases || []).length}件までで止めました。`;
+      action = `<form method="post" action="/plans/${planId}/resume" style="margin-top:8px">
+        <input type="hidden" name="${csrfParam}" value="${csrfToken}">
+        <button type="submit" class="v6-btn secondary">続きを生成する</button></form>
+        <p class="v6-sub" style="margin-top:6px">上限を引き上げるか、日をまたいで(コストは日次で集計されます)再実行してください。</p>`;
+    } else {
+      heading = hasCases ? "テスト項目の生成が途中で打ち切られました。" : "テスト項目を生成できませんでした。";
+      action = hasCases ? "" : `<a class="v6-btn secondary" href="/">やり直す</a>`;
+    }
+    noteBox.style.display = "block";
+    noteBox.innerHTML = `<b>${heading}</b> ${esc(plan.note)}<br>${action}`;
+  } else {
+    noteBox.style.display = "none";
+  }
+  const site = plan.siteMap || {nodes: []};
+  const cov = plan.coverageForecast || {};
+  const covText = (cov.specItemsTotal ?? 0) > 0
+    ? `${cov.specItemsCovered ?? 0} / ${cov.specItemsTotal}`
+    : "—(仕様書なし)";
+  document.getElementById("planStatsRow").innerHTML =
+    `<td>${site.nodes.length}</td><td>${(plan.perspectives || []).length}</td>` +
+    `<td>${(plan.testCases || []).length}</td><td>${covText}</td>`;
+}
+
+function renderCases(cases) {
+  currentCases = cases;
+  document.getElementById("caseCount").textContent = "(" + cases.length + "件)";
+  const perspectives = [...new Set(cases.map(c => c.perspective))].sort();
+  const sel = document.getElementById("filterPerspective");
+  sel.innerHTML = '<option value="">すべての観点</option>' + perspectives.map(p => `<option value="${p}">${esc(perspectiveLabel(p))}</option>`).join("");
+  drawRows();
+}
+
+function sortedFiltered() {
+  const filterP = document.getElementById("filterPerspective").value;
+  let rows = currentCases.filter(c => !filterP || c.perspective === filterP);
+  rows = rows.slice().sort((a, b) => {
+    const av = (a[sortKey] ?? "").toString(), bv = (b[sortKey] ?? "").toString();
+    return av < bv ? -sortDir : av > bv ? sortDir : 0;
+  });
+  return rows;
+}
+
+function drawRows() {
+  const rows = sortedFiltered();
+  document.getElementById("caseRows").innerHTML = rows.map(c => {
+    const danger = c.risk === "needs_approval";
+    const steps = (c.steps || []).map((s, i) => `${i + 1}. ${esc(s)}`).join("<br>") || "-";
+    return `<tr>
+      <td><input type="checkbox" name="testCaseIds" value="${esc(c.id)}" class="case-check" data-risk="${esc(c.risk)}" ${danger ? '' : 'checked'}></td>
+      <td class="v6-mono v6-nowrap">${esc(c.id)}</td>
+      <td class="v6-mono">${esc(perspectiveLabel(c.perspective))}</td>
+      <td class="col-risk v6-nowrap"><span class="v6-mark ${danger ? 'review' : 'info'}">${danger ? '要承認' : '通常'}</span></td>
+      <td class="col-target v6-mono v6-nowrap">${esc(c.target)}</td>
+      <td>${esc(c.title)}</td>
+      <td class="col-precondition">${esc(c.precondition) || "-"}</td>
+      <td class="col-steps">${steps}</td>
+      <td class="col-expected">${esc(c.expected) || "-"}</td>
+      <td class="v6-nowrap"><span class="v6-mark info">未実施</span></td>
+      <td class="v6-nowrap"><span class="v6-sub">-</span></td>
+    </tr>`;
+  }).join("") || '<tr><td colspan="11" class="v6-empty">この観点の項目はありません。</td></tr>';
+}
+
+document.getElementById("filterPerspective").addEventListener("change", drawRows);
+document.getElementById("includeDanger").addEventListener("change", (e) => {
+  document.querySelectorAll('.case-check[data-risk="needs_approval"]').forEach(cb => { cb.checked = e.target.checked; });
+});
+document.querySelectorAll(".col-toggle").forEach(cb => {
+  cb.addEventListener("change", () => {
+    document.querySelectorAll(`.col-${cb.dataset.col}`).forEach(el => { el.style.display = cb.checked ? "" : "none"; });
+  });
+});
+document.querySelectorAll("#caseTable th.sortable").forEach(th => {
+  th.style.cursor = "pointer";
+  th.addEventListener("click", () => {
+    const key = th.dataset.key;
+    sortDir = (sortKey === key) ? -sortDir : 1;
+    sortKey = key;
+    drawRows();
+  });
+});
+document.getElementById("approveForm").addEventListener("submit", (e) => {
+  document.getElementById("approveBtn").disabled = true;
+  document.getElementById("approveBtn").innerHTML = '<span class="v6-loading"></span>実行を開始しています…';
+});
+document.getElementById("approveForm").action = `/plans/${planId}/approve`;
+
+function poll() {
+  if (stopped) return;
+  fetch(`/plans/${planId}/status.json`)
+    .then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); })
+    .then(plan => {
+      document.getElementById("connError").style.display = "none";
+      if (plan.status === "recon") {
+        setTimeout(poll, 3000);
+        return;
+      }
+      document.getElementById("loadingBox").style.display = "none";
+      if (plan.status === "failed") {
+        document.getElementById("failedBox").style.display = "block";
+        document.getElementById("failedReason").textContent = plan.error || "原因不明のエラーです。";
+        return;
+      }
+      stopped = true;
+      document.getElementById("stepPlan").classList.remove("active");
+      document.getElementById("stepPlan").classList.add("done");
+      document.getElementById("stepApprove").classList.add("active");
+      document.getElementById("readyBox").style.display = "block";
+      renderPlan(plan);
+      renderCases(plan.testCases || []);
+    })
+    .catch(err => {
+      const box = document.getElementById("connError");
+      box.style.display = "block";
+      box.innerHTML = `<b>状況を取得できませんでした。</b> ${esc(err.message)}<br>自動的に再試行します…`;
+      setTimeout(poll, 3000);
+    });
+}
+poll();
+</script>
+</body>
+</html>

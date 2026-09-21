@@ -1,0 +1,12 @@
+openai>=1.0.0
+playwright>=1.40.0
+python-dotenv>=1.0.0
+pyyaml>=6.0
+httpx>=0.25.0
+python-docx>=1.0.0
+pypdf>=4.0.0
+reportlab>=4.0.0
+# reportlabは実行時には使わない。demo-site/spec/spec.pdf(デモ用仕様書)を作るためだけの依存
+tiktoken>=0.5.0
+# tiktokenも実行時のエージェント本体では使わない。agent/cost_report.pyのトークン数計測(GPT系cl100k_baseでの
+# 近似値。Gemini系の実際のトークナイザとは一致しない)専用の依存

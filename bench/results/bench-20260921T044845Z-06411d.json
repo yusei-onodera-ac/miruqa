@@ -1,0 +1,67 @@
+{
+ "benchId": "bench-20260921T044845Z-06411d",
+ "site": "demo-site@http://127.0.0.1:8765/",
+ "seededFlaws": 14,
+ "sharedPlanId": "p-f6458088",
+ "sharedPlanCaseCount": 10,
+ "sharedPlanBuildCost": {
+  "callCount": 5,
+  "errorCount": 0,
+  "totalCostUsdInline": 0.06542,
+  "totalCostUsdSettled": 0.06542,
+  "totalCostUsdEffective": 0.06542,
+  "byPurpose": {
+   "testcase-gen": {
+    "count": 5,
+    "costUsdInline": 0.06542,
+    "costUsdSettled": 0.06542,
+    "errors": 0,
+    "avgPromptTokens": null,
+    "avgCompletionTokens": null,
+    "tokenSampleCount": 0
+   }
+  },
+  "byModel": {
+   "gemini-3.5-flash": {
+    "count": 5,
+    "costUsdInline": 0.06542,
+    "costUsdSettled": 0.06542
+   }
+  },
+  "byDay": {
+   "2026-09-21": {
+    "count": 5,
+    "costUsdInline": 0.06542,
+    "costUsdSettled": 0.06542
+   }
+  }
+ },
+ "configs": [
+  {
+   "name": "direct-strong",
+   "model": "google/gemini-3.5-flash",
+   "detection": {
+    "l1l3": "6/8",
+    "l4": "3/6"
+   },
+   "falsePositives": 0,
+   "costUsdInline": 0.349342,
+   "costUsdSettled": 0.349342,
+   "durationSec": 1031.4,
+   "runId": "run-26ce62ab12",
+   "fallbacks": 0,
+   "resolvedModelByPurpose": {
+    "exec": {
+     "gemini-3.5-flash": 41
+    },
+    "charter": {
+     "gemini-3.5-flash": 1
+    },
+    "exploratory": {
+     "gemini-3.5-flash": 30
+    }
+   },
+   "agreementWithBase": null
+  }
+ ]
+}

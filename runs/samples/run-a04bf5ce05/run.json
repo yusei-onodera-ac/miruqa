@@ -1,0 +1,434 @@
+{
+ "runId": "run-a04bf5ce05",
+ "startedAt": "2026-09-20T15:31:28.906392+00:00",
+ "target": "http://127.0.0.1:8765/",
+ "goal": "商品をカートに入れる",
+ "persona": "it-weak-60s",
+ "mode": "inspect",
+ "status": "completed",
+ "config": {
+  "router": "orcarouter/auto",
+  "faultInjection": false
+ },
+ "metrics": {
+  "steps": 4,
+  "humanInterventions": 0,
+  "durationSec": 2.7,
+  "costUsd": {
+   "total": 0.0004,
+   "byLens": {},
+   "byModel": {
+    "fake/mock-model": 0.0004
+   }
+  },
+  "recoveries": {
+   "retries": 0,
+   "fallbacks": 0,
+   "degraded": 0,
+   "resumed": 0
+  }
+ },
+ "steps": [
+  {
+   "n": 1,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 1
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/products/1",
+    "title": "商品詳細 | サンプルストア",
+    "screenshot": null
+   },
+   "llmCalls": [
+    {
+     "requestId": "fake-1",
+     "router": "orcarouter/auto",
+     "resolvedModel": "fake/mock-model",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 5,
+     "costUsdInline": 0.0001,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 2
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/cart",
+    "title": "カート | サンプルストア",
+    "screenshot": "run-a04bf5ce05/step-001.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "fake-2",
+     "router": "orcarouter/auto",
+     "resolvedModel": "fake/mock-model",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 5,
+     "costUsdInline": 0.0001,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 3
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/cart",
+    "title": "カート | サンプルストア",
+    "screenshot": "run-a04bf5ce05/step-001.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "fake-3",
+     "router": "orcarouter/auto",
+     "resolvedModel": "fake/mock-model",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 5,
+     "costUsdInline": 0.0001,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 4
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/cart",
+    "title": "カート | サンプルストア",
+    "screenshot": "run-a04bf5ce05/step-001.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "fake-4",
+     "router": "orcarouter/auto",
+     "resolvedModel": "fake/mock-model",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "l1-text",
+     "latencyMs": 5,
+     "costUsdInline": 0.0001,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  }
+ ],
+ "findings": [
+  {
+   "lens": "L1",
+   "severity": "High",
+   "confidence": "confirmed",
+   "title": "送料の表示が特定商取引法ページと決済画面で一致しない",
+   "detail": "特定商取引法ページ(http://127.0.0.1:8765/legal/tokushoho)では送料「800円（全国一律）」、決済画面(http://127.0.0.1:8765/checkout)では送料「無料」と表示されており、金額が一致しません(横断指摘)。",
+   "url": "http://127.0.0.1:8765/checkout",
+   "evidence": [
+    {
+     "type": "response_excerpt",
+     "ref": "http://127.0.0.1:8765/legal/tokushoho 送料欄: 800円（全国一律）"
+    },
+    {
+     "type": "response_excerpt",
+     "ref": "http://127.0.0.1:8765/checkout 送料欄: 無料"
+    }
+   ],
+   "repro": [
+    "http://127.0.0.1:8765/legal/tokushoho を開き送料欄を確認する",
+    "http://127.0.0.1:8765/checkout を開き送料欄を確認する",
+    "表示金額が異なることを確認する"
+   ],
+   "fix": "特定商取引法ページと決済画面の送料表示を同じ値に統一する。",
+   "silentChurnRisk": true,
+   "crossLens": [],
+   "id": "f-001"
+  },
+  {
+   "lens": "L1",
+   "testId": null,
+   "severity": "Low",
+   "confidence": "needs_review",
+   "title": "誤字「送量無料」",
+   "detail": "トップページに「送量無料」という誤字がある(正しくは送料無料)。",
+   "url": "http://127.0.0.1:8765/cart",
+   "evidence": [
+    {
+     "type": "screenshot",
+     "ref": "run-a04bf5ce05/step-001.jpg"
+    }
+   ],
+   "repro": [],
+   "fix": "",
+   "silentChurnRisk": false,
+   "crossLens": [],
+   "id": "f-002"
+  }
+ ],
+ "testPlans": [],
+ "outcome": "success",
+ "summary": "商品ページを確認し、誤字を1件報告した。",
+ "networkLog": [
+  {
+   "url": "http://127.0.0.1:8765/products/1",
+   "method": "GET",
+   "status": 200,
+   "resourceType": "document",
+   "t": 1789918290.069699
+  },
+  {
+   "url": "http://127.0.0.1:8765/cart/add",
+   "method": "POST",
+   "status": 302,
+   "resourceType": "document",
+   "t": 1789918291.113
+  },
+  {
+   "url": "http://127.0.0.1:8765/cart",
+   "method": "GET",
+   "status": 200,
+   "resourceType": "document",
+   "t": 1789918291.114711
+  }
+ ],
+ "blockedRequests": [],
+ "policyLog": [
+  {
+   "action": {
+    "tool": "navigate",
+    "args": {
+     "url": "http://127.0.0.1:8765/products/1"
+    },
+    "reason": "商品を見る",
+    "step": 0
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   }
+  },
+  {
+   "action": {
+    "tool": "click",
+    "args": {
+     "index": 5,
+     "label": "カートに入れる"
+    },
+    "reason": "カートに入れる",
+    "step": 1
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   }
+  }
+ ],
+ "mouseMetrics": {
+  "clicks": 1,
+  "distancePx": 794,
+  "trace": [
+   {
+    "action": "click",
+    "index": 5,
+    "label": "カートに入れる",
+    "from": [
+     0,
+     0
+    ],
+    "to": [
+     528,
+     593
+    ],
+    "distance_px": 794,
+    "duration_s": 0.57,
+    "path": [
+     [
+      2,
+      2
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      15,
+      17
+     ],
+     [
+      26,
+      29
+     ],
+     [
+      39,
+      44
+     ],
+     [
+      55,
+      62
+     ],
+     [
+      73,
+      82
+     ],
+     [
+      93,
+      104
+     ],
+     [
+      114,
+      128
+     ],
+     [
+      137,
+      154
+     ],
+     [
+      161,
+      181
+     ],
+     [
+      186,
+      209
+     ],
+     [
+      212,
+      238
+     ],
+     [
+      238,
+      267
+     ],
+     [
+      264,
+      296
+     ],
+     [
+      291,
+      326
+     ],
+     [
+      317,
+      355
+     ],
+     [
+      342,
+      384
+     ],
+     [
+      367,
+      412
+     ],
+     [
+      391,
+      439
+     ],
+     [
+      414,
+      465
+     ],
+     [
+      436,
+      489
+     ],
+     [
+      456,
+      511
+     ],
+     [
+      474,
+      531
+     ],
+     [
+      489,
+      549
+     ],
+     [
+      503,
+      564
+     ],
+     [
+      514,
+      576
+     ],
+     [
+      522,
+      585
+     ],
+     [
+      527,
+      591
+     ],
+     [
+      528,
+      593
+     ]
+    ],
+    "screenshot": "run-a04bf5ce05/step-001.jpg"
+   }
+  ]
+ }
+}

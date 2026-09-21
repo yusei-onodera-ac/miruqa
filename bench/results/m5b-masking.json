@@ -1,0 +1,37 @@
+{
+  "measurement": "M5b",
+  "per_page": [
+    {
+      "url": "http://127.0.0.1:8765/",
+      "counts": {}
+    },
+    {
+      "url": "http://127.0.0.1:8765/contact",
+      "counts": {}
+    },
+    {
+      "url": "http://127.0.0.1:8765/legal/tokushoho",
+      "counts": {
+        "EMAIL": 1,
+        "PHONE": 1,
+        "ADDRESS": 1
+      }
+    },
+    {
+      "url": "http://127.0.0.1:8765/privacy",
+      "counts": {}
+    }
+  ],
+  "total_counts": {
+    "EMAIL": 1,
+    "PHONE": 1,
+    "ADDRESS": 1
+  },
+  "example_before": "問い合わせ担当: 山田太郎、電話090-1234-5678、email yamada.taro@example-test.jp、住所 東京都千代田区1-1-1",
+  "example_after": "問い合わせ担当: 山田太郎、電話[PHONE]、email [EMAIL]、住所 [ADDRESS]",
+  "example_counts": {
+    "EMAIL": 1,
+    "PHONE": 1,
+    "ADDRESS": 1
+  }
+}

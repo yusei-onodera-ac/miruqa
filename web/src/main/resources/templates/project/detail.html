@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title th:text="${project.name} + ' | ' + ${productName}"></title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="v6">
+  <div class="v6-shell">
+    <div th:replace="~{fragments/shell :: header(current='projects')}"></div>
+    <p class="v6-sub"><a th:href="@{/projects}">← プロジェクト一覧</a></p>
+    <p class="v6-title" th:text="${project.name}"></p>
+    <p class="v6-sub v6-mono url" th:text="${project.targetUrl}"></p>
+    <p class="v6-sub" style="margin-top:-16px">
+      <span class="v6-mark info" th:if="${project.kind == 'PUBLIC_READONLY'}">公開ページ・読み取り専用</span>
+      <span class="v6-mark info" th:if="${project.kind != 'PUBLIC_READONLY'}">開発環境の点検</span>
+    </p>
+
+    <nav class="v6-tabs" id="tabs">
+      <button type="button" class="current" data-tab="overview">概要</button>
+      <button type="button" data-tab="executions">実行履歴</button>
+      <button type="button" data-tab="specs">仕様書</button>
+      <button type="button" data-tab="domain">設定・ドメイン確認</button>
+    </nav>
+
+    <!-- 概要 -->
+    <section class="v6-tab-panel current" data-panel="overview">
+      <div class="v6-panel">
+        <table class="v6-table">
+          <tr><th style="width:160px">プロジェクトID</th><td class="v6-mono" th:text="${project.id}"></td></tr>
+          <tr><th>対象URL</th><td class="v6-mono url" th:text="${project.targetUrl}"></td></tr>
+          <tr><th>ドメイン所有確認</th>
+            <td>
+              <span th:if="${domain == null}" class="v6-mark review">未開始</span>
+              <span th:if="${domain != null and domain.status == 'verified'}" class="v6-mark pass">確認済み</span>
+              <span th:if="${domain != null and domain.status != 'verified'}" class="v6-mark review">未確認</span>
+            </td>
+          </tr>
+          <tr th:if="${domain != null}"><th>テスト環境の宣言</th>
+            <td>
+              <span th:if="${domain.testEnvironment}" class="v6-mark pass">宣言済み</span>
+              <span th:unless="${domain.testEnvironment}" class="v6-mark review">未宣言</span>
+            </td>
+          </tr>
+          <tr><th>実行回数</th><td class="v6-mono" th:text="${#lists.size(executions)}"></td></tr>
+          <tr><th>作成日時</th><td class="v6-mono" th:text="${#temporals.format(project.createdAt, 'yyyy-MM-dd HH:mm')}"></td></tr>
+        </table>
+      </div>
+
+      <p class="v6-title" style="font-size:15px;margin-top:24px">診断</p>
+      <div class="v6-panel">
+        <p class="v6-sub" style="margin-bottom:16px">
+          このプロジェクトの対象URLを使って、点検を開始できます。所有確認が未完了の間は、診断を
+          開始できません(「設定・ドメイン確認」タブ)。危険な操作(注文確定など)の前は、
+          所有確認の状態に関わらず必ず承認待ちになります。
+        </p>
+        <a class="v6-btn" th:href="@{/(projectId=${project.id}, url=${project.targetUrl})}">このURLで診断を開始</a>
+      </div>
+    </section>
+
+    <!-- 実行履歴 -->
+    <section class="v6-tab-panel" data-panel="executions">
+      <table class="v6-table" th:if="${not #lists.isEmpty(executions)}">
+        <thead><tr><th class="v6-nowrap">実行日時(JST)</th><th class="v6-nowrap">状態</th><th class="v6-nowrap">指摘件数</th><th class="v6-nowrap">所要時間</th><th class="v6-nowrap">コスト</th></tr></thead>
+        <tbody>
+          <tr th:each="r : ${executions}" th:data-href="@{'/runs/' + ${r.runId}}">
+            <td class="v6-mono v6-nowrap"><a th:href="@{'/runs/' + ${r.runId}}" th:text="${r.startedAtDisplay}"></a></td>
+            <td class="v6-nowrap">
+              <span th:replace="~{fragments/shell :: runStatusMark(${r.status})}"></span>
+            </td>
+            <td class="v6-mono v6-nowrap" th:text="${r.findings != null ? #lists.size(r.findings) : 0}"></td>
+            <td class="v6-mono v6-nowrap" th:text="${r.durationDisplay}"></td>
+            <td class="v6-mono v6-nowrap" th:text="${r.costDisplay}"></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="v6-empty" th:if="${#lists.isEmpty(executions)}">
+        このプロジェクトに紐づく実行履歴はまだありません。診断を開始すると、ここに一覧表示されます。
+      </div>
+    </section>
+
+    <!-- 仕様書 -->
+    <section class="v6-tab-panel" data-panel="specs">
+      <div class="v6-empty">
+        アップロード済みの仕様書はまだありません。診断の開始画面から追加できます。
+      </div>
+    </section>
+
+    <!-- 設定・ドメイン確認 -->
+    <section class="v6-tab-panel" data-panel="domain">
+      <div class="v6-panel">
+        <!-- モードA: ローカル・プライベートな対象は、所有確認の代わりに宣言だけで診断を開始できる -->
+        <div th:if="${isLocalHost}">
+          <div th:if="${domain == null or domain.status != 'local_declared'}">
+            <p class="v6-sub" style="margin-bottom:16px">
+              この対象はローカル・プライベートな環境です(所有を証明する方法が無いため、
+              所有確認は行いません)。診断を開始するには、次を宣言してください:
+              「このURLは開発中・リリース前のテスト環境であり、本番環境ではないことを確認しました」。
+            </p>
+            <form method="post" th:action="@{/projects/{id}/domain/declare-local(id=${project.id})}">
+              <input type="hidden" name="confirmed" value="true">
+              <button type="submit" class="v6-btn">開発中・リリース前のテスト環境であると宣言する</button>
+            </form>
+          </div>
+          <div th:if="${domain != null and domain.status == 'local_declared'}">
+            <p class="v6-mark pass">開発中・リリース前のテスト環境として宣言済みです</p>
+            <p class="v6-sub" style="margin:4px 0 16px">
+              宣言日時: <span class="v6-mono" th:text="${#temporals.format(domain.verifiedAt, 'yyyy-MM-dd HH:mm')}"></span>
+            </p>
+            <div th:unless="${domain.testEnvironment}">
+              <p class="v6-note">
+                連打・手順スキップ・改ざんなどの能動的なテストも、このプロジェクトでは実施できます
+                (すでにテスト環境として宣言済みのため)。個別のテスト項目の承認は、実行画面で行います。
+              </p>
+              <form method="post" th:action="@{/projects/{id}/domain/declare-test-environment(id=${project.id})}">
+                <input type="hidden" name="confirmed" value="true">
+                <button type="submit" class="v6-btn secondary">(参考)テスト環境フラグを個別に確認する</button>
+              </form>
+            </div>
+          </div>
+        </div>
+        <!-- モードB: 公開ステージング(自分のドメイン)。/.well-known方式の所有確認 -->
+        <div th:unless="${isLocalHost}">
+          <div th:if="${domain == null}">
+            <p class="v6-sub" style="margin-bottom:16px">
+              このドメインは、まだ所有確認を開始していません。確認済みでないと、診断そのものを
+              開始できません。
+            </p>
+            <form method="post" th:action="@{/projects/{id}/domain/start(id=${project.id})}">
+              <button type="submit" class="v6-btn">所有確認を開始する</button>
+            </form>
+          </div>
+          <div th:if="${domain != null and domain.status != 'verified'}">
+            <p class="v6-sub">
+              対象サイトの<span class="v6-mono">/.well-known/</span>配下に、次のファイルを設置してください:
+            </p>
+            <table class="v6-table" style="margin-bottom:16px">
+              <tr><th style="width:120px">ファイル名</th><td class="v6-mono" th:text="${verificationFileName}"></td></tr>
+              <tr><th>ファイルの内容</th><td class="v6-mono" th:text="${domain.verificationToken}"></td></tr>
+            </table>
+            <form method="post" th:action="@{/projects/{id}/domain/check(id=${project.id})}">
+              <button type="submit" class="v6-btn">設置を確認する</button>
+            </form>
+            <p class="v6-note" style="margin-top:16px" th:if="${domain.lastCheckedAt != null}">
+              前回確認: <span th:text="${#temporals.format(domain.lastCheckedAt, 'yyyy-MM-dd HH:mm')}"></span>
+              (一致しなかったか、確認先に到達できませんでした)
+            </p>
+          </div>
+          <div th:if="${domain != null and domain.status == 'verified'}">
+            <p class="v6-sub">
+              確認日時: <span class="v6-mono" th:text="${#temporals.format(domain.verifiedAt, 'yyyy-MM-dd HH:mm')}"></span>
+            </p>
+            <div th:unless="${domain.testEnvironment}">
+              <p class="v6-note">
+                能動的なテスト(連打・手順スキップ・改ざん等)を行うには、このドメインが「テスト環境」で
+                あることの宣言が必要です。本番環境やテスト対象外のサイトには絶対に宣言しないでください
+                (【要法務確認】: 権限のない対象への実行は法的責任を伴う可能性があります)。
+              </p>
+              <form method="post" th:action="@{/projects/{id}/domain/declare-test-environment(id=${project.id})}">
+                <input type="hidden" name="confirmed" value="true">
+                <button type="submit" class="v6-btn">このドメインはテスト環境であると宣言する</button>
+              </form>
+            </div>
+            <p class="v6-mark pass" th:if="${domain.testEnvironment}">テスト環境として宣言済みです</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- v0.7 P5: ログインが必要な画面の点検のための、テスト用アカウント。開発環境の点検のみ
+           (公開ページ・読み取り専用では、認証を回避しない方針のためログインを試みない)。 -->
+      <div class="v6-panel" th:if="${project.kind != 'PUBLIC_READONLY'}" style="margin-top:16px">
+        <p class="v6-title" style="font-size:15px">ログインが必要な画面の点検</p>
+        <p class="v6-sub" style="margin-bottom:16px">
+          対象サイトにログインが必要な画面がある場合、テスト用のアカウントを登録すると、
+          診断のたびに自動でログインしてから点検します。パスワードは暗号化して保管し、
+          診断の実行時だけ復号して使います(それ以外には保存しません)。
+        </p>
+        <div th:if="${testCredentialUsername != null}">
+          <p class="v6-mark pass">登録済み: <span class="v6-mono" th:text="${testCredentialUsername}"></span></p>
+          <form method="post" th:action="@{/projects/{id}/credentials/delete(id=${project.id})}" style="margin-top:8px">
+            <button type="submit" class="v6-btn secondary">登録を削除する</button>
+          </form>
+        </div>
+        <form method="post" th:action="@{/projects/{id}/credentials(id=${project.id})}" style="margin-top:8px">
+          <div class="v6-field">
+            <label for="credUsername">ユーザー名・メールアドレス</label>
+            <input type="text" id="credUsername" name="username" autocomplete="off" required>
+          </div>
+          <div class="v6-field">
+            <label for="credPassword">パスワード</label>
+            <input type="password" id="credPassword" name="password" autocomplete="off" required>
+          </div>
+          <button type="submit" class="v6-btn" th:text="${testCredentialUsername != null} ? '更新する' : '登録する'"></button>
+        </form>
+      </div>
+
+      <!-- v0.7 P7(縮小): プロジェクト単位の削除。取り消せないため、プロジェクト名の入力で確認する。 -->
+      <div class="v6-panel" style="margin-top:16px; border-color:var(--v6-fail)">
+        <p class="v6-title" style="font-size:15px; color:var(--v6-fail)">プロジェクトの削除</p>
+        <p class="v6-sub" style="margin-bottom:16px">
+          このプロジェクトの記録(実行履歴・項目書・仕様書・テスト用アカウント)を削除します。
+          この操作は取り消せません。ワーカー側に保存された実行結果本体は削除されません。
+        </p>
+        <form method="post" th:action="@{/projects/{id}/delete(id=${project.id})}"
+              onsubmit="return confirm('本当に削除しますか?この操作は取り消せません。')">
+          <div class="v6-field">
+            <label for="confirmName">確認のため、プロジェクト名を入力してください</label>
+            <input type="text" id="confirmName" name="confirmName" autocomplete="off" th:placeholder="${project.name}">
+          </div>
+          <button type="submit" class="v6-btn" style="background:var(--v6-fail); border-color:var(--v6-fail)">削除する</button>
+        </form>
+      </div>
+    </section>
+  </div>
+  <script>
+    document.querySelectorAll("tr[data-href]").forEach(row => {
+      row.addEventListener("click", () => { location.href = row.dataset.href; });
+    });
+    document.querySelectorAll("#tabs button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("#tabs button").forEach(b => b.classList.remove("current"));
+        document.querySelectorAll(".v6-tab-panel").forEach(p => p.classList.remove("current"));
+        btn.classList.add("current");
+        document.querySelector('.v6-tab-panel[data-panel="' + btn.dataset.tab + '"]').classList.add("current");
+      });
+    });
+    // ハッシュ(#domain等)で直接そのタブを開けるようにする(所有確認完了後のリダイレクト等で使う)
+    if (location.hash) {
+      const tab = location.hash.slice(1);
+      const btn = document.querySelector('#tabs button[data-tab="' + tab + '"]');
+      if (btn) btn.click();
+    }
+  </script>
+</body>
+</html>

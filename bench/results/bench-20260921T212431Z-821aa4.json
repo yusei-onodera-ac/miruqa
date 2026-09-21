@@ -1,0 +1,65 @@
+{
+ "benchId": "bench-20260921T212431Z-821aa4",
+ "site": "demo-site@http://127.0.0.1:8765/",
+ "seededFlaws": 14,
+ "sharedPlanId": "p-m3-fastpath-b677a323",
+ "sharedPlanCaseCount": 2,
+ "sharedPlanBuildCost": {
+  "callCount": 0,
+  "errorCount": 0,
+  "totalCostUsdInline": 0.0,
+  "totalCostUsdSettled": 0.0,
+  "totalCostUsdEffective": 0.0,
+  "byPurpose": {},
+  "byModel": {},
+  "byDay": {}
+ },
+ "configs": [
+  {
+   "name": "direct-strong",
+   "model": "google/gemini-3.5-flash",
+   "detection": {
+    "l1l3": "4/8",
+    "l4": "2/6"
+   },
+   "falsePositives": 1,
+   "costUsdInline": 0.122674,
+   "costUsdSettled": 0.122674,
+   "durationSec": 108.8,
+   "runId": "run-5bf7609750",
+   "fallbacks": 0,
+   "resolvedModelByPurpose": {
+    "charter": {
+     "gemini-3.5-flash": 1
+    },
+    "exploratory": {
+     "gemini-3.5-flash": 30
+    }
+   },
+   "agreementWithBase": null
+  },
+  {
+   "name": "named-router",
+   "model": "orcarouter/site-inspector",
+   "detection": {
+    "l1l3": "5/8",
+    "l4": "2/6"
+   },
+   "falsePositives": 1,
+   "costUsdInline": 0.137368,
+   "costUsdSettled": 0.137368,
+   "durationSec": 113.5,
+   "runId": "run-c5d8424241",
+   "fallbacks": 0,
+   "resolvedModelByPurpose": {
+    "charter": {
+     "gemini-3.5-flash": 1
+    },
+    "exploratory": {
+     "gemini-3.5-flash": 30
+    }
+   },
+   "agreementWithBase": 1.0
+  }
+ ]
+}

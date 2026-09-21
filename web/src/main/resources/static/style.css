@@ -1,0 +1,145 @@
+/* MiruQA - 道具の画面(v0.6第3a章「v6」デザイン)。CDN不使用、自前CSSのみ。オフラインで動く。
+   v0.5世代の旧UI部品(.card/.badge/.chip/.sidebar等)は、全画面がv6へ移行済みのため削除した
+   (P8、2026-09-22)。.drawer・iframe.reportはv6化されていないが現役で使用中のため残す。 */
+:root {
+  --bg: #f4f6f9;
+  --ink: #1c2330;
+  --sub: #667085;
+  --line: #e4e7ec;
+  --radius: 10px;
+
+  /* --- v0.6 第3a章: 新デザイントークン。「AIっぽさ」を出さないための道具の画面用。
+     新規画面(ログイン・サインアップ・プロジェクト等)はこちらを使う。
+     UIチェックポイント(P2完了後)で、既存画面もこちらへ全面移行する予定。 --- */
+  --paper: #FAFAF7;
+  --surface: #FFFFFF;
+  --v6-ink: #1B1B19;
+  --v6-muted: #6B6A64;
+  --rule: #DAD8CF;
+  --rule-strong: #B9B6AA;
+  --v6-primary: #1F3A5F;
+  --v6-fail: #B3261E;
+  --v6-pass: #2F6B4F;
+  --v6-review: #9A6700;
+  --v6-info: #4A5568;
+  --v6-radius: 3px;
+  --v6-focus: #1F3A5F;
+  --v6-mono: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+  --v6-sans: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Noto Sans JP", Meiryo, sans-serif;
+}
+
+/* --- v0.6 第3a章: 道具の画面(罫線と表が中心。角丸2〜4px、影はオーバーレイのみ、色は意味を持たせる) --- */
+.v6 { background: var(--paper); color: var(--v6-ink); font-family: var(--v6-sans); }
+.v6 a { color: var(--v6-primary); }
+.v6-shell { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+.v6-shell.narrow { max-width: 420px; padding-top: 64px; }
+.v6-mono, .v6-shell code, .v6-shell .id, .v6-shell .url { font-family: var(--v6-mono); font-variant-numeric: tabular-nums; }
+.v6-title { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+.v6-sub { color: var(--v6-muted); font-size: 13px; margin: 0 0 24px; }
+.v6-panel { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--v6-radius); padding: 24px; }
+.v6-field { margin-bottom: 16px; }
+.v6-field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.v6-field input, .v6-field select, .v6-field textarea {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--rule-strong); border-radius: var(--v6-radius);
+  font-size: 14px; font-family: inherit; background: var(--surface); color: var(--v6-ink);
+}
+.v6-field input:focus, .v6-field select:focus, .v6-field textarea:focus {
+  outline: 2px solid var(--v6-focus); outline-offset: 1px; border-color: var(--v6-focus);
+}
+.v6-btn {
+  display: inline-block; padding: 8px 16px; border-radius: var(--v6-radius); border: 1px solid var(--v6-primary);
+  background: var(--v6-primary); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;
+  font-family: inherit; text-decoration: none;
+}
+/* .v6 a { color } の方が詳細度が高い(クラス+要素型)ため、.v6-btn単体の指定では負けて
+   文字色が背景と同化して見えなくなる不具合があった(実測、docs/screenshots/v0.6で発覚)。
+   .v6配下での上書きとして詳細度を揃える */
+.v6 a.v6-btn { color: #fff; }
+.v6-btn:hover { background: #16304f; }
+.v6-btn.secondary { background: var(--surface); color: var(--v6-primary); }
+.v6 a.v6-btn.secondary { color: var(--v6-primary); }
+.v6-btn.secondary:hover { background: var(--paper); }
+.v6-error { border-left: 3px solid var(--v6-fail); padding: 10px 14px; background: var(--surface); color: var(--v6-fail); font-size: 13px; margin-bottom: 16px; }
+.v6-note { border-left: 3px solid var(--rule-strong); padding: 10px 14px; background: var(--surface); color: var(--v6-muted); font-size: 13px; margin-bottom: 16px; }
+.v6-table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: auto; }
+.v6-table th, .v6-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); }
+.v6-table th { color: var(--v6-muted); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--paper); z-index: 1; }
+.v6-table tr:hover td { background: var(--paper); }
+.v6-table tr[data-href] { cursor: pointer; }
+.v6-nowrap { white-space: nowrap; }
+.v6-table a { color: inherit; text-decoration: none; }
+.v6-table a:hover, .v6-table a:focus-visible { text-decoration: underline; }
+.v6-table a:focus-visible, .v6-btn:focus-visible { outline: 2px solid var(--v6-primary); outline-offset: 2px; }
+.v6-empty { padding: 40px 20px; text-align: center; color: var(--v6-muted); border: 1px dashed var(--rule-strong); border-radius: var(--v6-radius); }
+/* 状態は色つきのピルではなく、小さな四角い印+文字 */
+.v6-mark { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; }
+.v6-mark::before { content: "■"; font-size: 10px; }
+.v6-mark.pass { color: var(--v6-pass); }
+.v6-mark.fail { color: var(--v6-fail); }
+.v6-mark.review { color: var(--v6-review); }
+.v6-mark.info { color: var(--v6-info); }
+.v6-nav { display: flex; gap: 16px; border-bottom: 1px solid var(--rule); padding-bottom: 12px; margin-bottom: 24px; font-size: 13px; }
+.v6-nav a { color: var(--v6-muted); text-decoration: none; }
+.v6-nav a.current, .v6-nav a:hover { color: var(--v6-ink); font-weight: 600; }
+/* タブ(第3a章: カードではなく罫線下線。.v6-navと詳細度を揃えて見た目を統一する) */
+.v6-tabs { display: flex; gap: 20px; border-bottom: 1px solid var(--rule); margin: 24px 0 0; font-size: 13px; }
+.v6-tabs button { background: none; border: none; padding: 0 0 10px; font: inherit; color: var(--v6-muted); cursor: pointer; border-bottom: 2px solid transparent; }
+.v6-tabs button.current { color: var(--v6-ink); font-weight: 600; border-bottom-color: var(--v6-primary); }
+.v6-tab-panel { display: none; padding-top: 20px; }
+.v6-tab-panel.current { display: block; }
+
+/* 進行状況(ウィザードの段階表示。色つきピルではなく罫線下線+■印) */
+.v6-steps { display: flex; gap: 24px; border-bottom: 1px solid var(--rule); padding-bottom: 12px; margin: 0 0 28px; font-size: 13px; color: var(--v6-muted); flex-wrap: wrap; }
+.v6-steps .v6-step.done { color: var(--v6-pass); }
+.v6-steps .v6-step.done::before { content: "■ "; font-size: 10px; }
+.v6-steps .v6-step.active { color: var(--v6-ink); font-weight: 600; }
+
+/* ドロップゾーン(仕様書アップロード) */
+.v6-dropzone { border: 1px dashed var(--rule-strong); border-radius: var(--v6-radius); padding: 20px; text-align: center; font-size: 13px; color: var(--v6-muted); cursor: pointer; }
+.v6-dropzone.drag { border-color: var(--v6-primary); color: var(--v6-ink); }
+.v6-file-chip { display: inline-block; font-size: 12px; font-family: var(--v6-mono); border: 1px solid var(--rule); border-radius: 4px; padding: 2px 8px; margin: 4px 4px 0 0; }
+
+/* KPI・集計の数値行(第3a章: カード3枚横並びではなく罫線区切りの表) */
+.v6-stats-table td { font-size: 20px; font-family: var(--v6-mono); }
+
+/* プロジェクトの種類の選択(v0.7第1b節: 罫線・表のUI、絵文字なし。装飾的な「カード」ではなく
+   選択肢を示す罫線ボックス) */
+.v6-kind-option {
+  flex: 1; min-width: 220px; display: flex; gap: 10px; align-items: flex-start;
+  border: 1px solid var(--rule-strong); border-radius: var(--v6-radius); padding: 14px; cursor: pointer;
+}
+.v6-kind-option:has(input:checked) { border-color: var(--v6-primary); background: var(--surface); }
+.v6-kind-option input { margin-top: 3px; }
+
+.v6-loading::before { content: ""; display: inline-block; width: 10px; height: 10px; border: 2px solid var(--rule-strong); border-top-color: var(--v6-primary); border-radius: 50%; margin-right: 6px; animation: v6-spin 0.7s linear infinite; vertical-align: -1px; }
+@keyframes v6-spin { to { transform: rotate(360deg); } }
+
+/* 数値の読み込み前(スケルトン)。「-」の羅列より、読み込み中だと分かるようにする */
+.v6-skeleton { display: inline-block; width: 2.4em; height: 0.9em; background: var(--rule); border-radius: 3px; animation: v6-pulse 1.2s ease-in-out infinite; vertical-align: middle; }
+@keyframes v6-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+  line-height: 1.6;
+}
+a { color: inherit; }
+
+/* --- ドロワー(run.htmlの指摘の詳細。v6化されていないが現役で使用中) --- */
+.drawer-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(20,22,30,.35); z-index: 40;
+}
+.drawer-overlay.open { display: block; }
+.drawer {
+  position: fixed; top: 0; right: 0; height: 100vh; width: min(420px, 92vw); background: var(--surface, #fff);
+  color: var(--v6-ink, inherit);
+  box-shadow: -8px 0 24px rgba(0,0,0,.12); z-index: 41; transform: translateX(100%);
+  transition: transform .18s ease; padding: 22px; overflow-y: auto;
+}
+.drawer-overlay.open .drawer { transform: translateX(0); }
+.drawer .close-btn { float: right; background: none; border: none; font-size: 18px; cursor: pointer; color: var(--v6-muted, var(--sub)); }
+.drawer dt { font-size: 11px; color: var(--v6-muted, var(--sub)); margin-top: 12px; }
+.drawer dd { margin: 2px 0 0; font-size: 13px; }
+
+iframe.report { width: 100%; height: 78vh; border: 1px solid var(--line); border-radius: var(--radius); }

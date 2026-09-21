@@ -1,0 +1,117 @@
+{
+ "benchId": "bench-20260921T040959Z-69135a",
+ "site": "demo-site@http://127.0.0.1:8765/",
+ "seededFlaws": 14,
+ "sharedPlanId": "p-f6458088",
+ "sharedPlanCaseCount": 10,
+ "sharedPlanBuildCost": {
+  "callCount": 5,
+  "errorCount": 0,
+  "totalCostUsdInline": 0.06542,
+  "totalCostUsdSettled": 0.06542,
+  "totalCostUsdEffective": 0.06542,
+  "byPurpose": {
+   "testcase-gen": {
+    "count": 5,
+    "costUsdInline": 0.06542,
+    "costUsdSettled": 0.06542,
+    "errors": 0
+   }
+  },
+  "byModel": {
+   "gemini-3.5-flash": {
+    "count": 5,
+    "costUsdInline": 0.06542,
+    "costUsdSettled": 0.06542
+   }
+  },
+  "byDay": {
+   "2026-09-21": {
+    "count": 5,
+    "costUsdInline": 0.06542,
+    "costUsdSettled": 0.06542
+   }
+  }
+ },
+ "configs": [
+  {
+   "name": "direct-strong",
+   "model": "google/gemini-3.5-flash",
+   "detection": {
+    "l1l3": "6/8",
+    "l4": "3/6"
+   },
+   "falsePositives": 0,
+   "costUsdInline": 0.34466,
+   "costUsdSettled": 0.34466,
+   "durationSec": 190.6,
+   "runId": "run-88183a2553",
+   "fallbacks": 0,
+   "resolvedModelByPurpose": {
+    "exec": {
+     "gemini-3.5-flash": 35
+    },
+    "charter": {
+     "gemini-3.5-flash": 1
+    },
+    "exploratory": {
+     "gemini-3.5-flash": 30
+    }
+   },
+   "agreementWithBase": null
+  },
+  {
+   "name": "named-router",
+   "model": "orcarouter/site-inspector",
+   "detection": {
+    "l1l3": "6/8",
+    "l4": "3/6"
+   },
+   "falsePositives": 0,
+   "costUsdInline": 0.375824,
+   "costUsdSettled": 0.375824,
+   "durationSec": 341.0,
+   "runId": "run-5b4e3d17d7",
+   "fallbacks": 0,
+   "resolvedModelByPurpose": {
+    "exec": {
+     "gemini-3.5-flash": 41
+    },
+    "charter": {
+     "gemini-3.5-flash": 1
+    },
+    "exploratory": {
+     "gemini-3.5-flash": 30
+    }
+   },
+   "agreementWithBase": 0.9
+  },
+  {
+   "name": "auto",
+   "model": "orcarouter/auto",
+   "detection": {
+    "l1l3": "6/8",
+    "l4": "3/6"
+   },
+   "falsePositives": 0,
+   "costUsdInline": 0.35589,
+   "costUsdSettled": 0.35589,
+   "durationSec": 319.0,
+   "runId": "run-30c45c6424",
+   "fallbacks": 0,
+   "resolvedModelByPurpose": {
+    "exec": {
+     "gemini-3.5-flash": 41
+    },
+    "charter": {
+     "gemini-3.5-flash": 1
+    },
+    "exploratory": {
+     "gemini-3.5-flash": 30
+    }
+   },
+   "agreementWithBase": 0.9
+  }
+ ],
+ "sessionAffinity": "OFF (2026-09-21実行時点で開発者のコンソール設定がオフだったと事後確認。judgment16参照)"
+}

@@ -1,0 +1,8 @@
+<%@ page contentType="text/html;charset=UTF-8" pageEncoding="UTF-8" session="false" %>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" href="${pageContext.request.contextPath}/static/img/favicon.png" type="image/png">
+<link rel="stylesheet" href="${pageContext.request.contextPath}/static/css/site.css">
+<script src="${pageContext.request.contextPath}/static/js/site.js" defer></script>

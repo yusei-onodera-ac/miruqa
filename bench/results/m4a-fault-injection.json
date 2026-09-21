@@ -1,0 +1,40 @@
+{
+  "measurement": "M4a",
+  "note": "予算逼迫のため、計画のN=5からN=3に縮小して打ち切った(3回とも完走を確認できたため、傾向は把握できたと判断)。TESTCASE_MAX_CASES新規生成は行わず、M3で使った2項目の既承認Planを再利用してコストを抑えた。",
+  "faultInjectionRate": 0.3,
+  "faultInjectionTypes": "429,5xx,timeout(既定)",
+  "planId": "p-m3-fastpath-b677a323",
+  "results": [
+    {
+      "runId": "run-m4a-1-56788",
+      "status": "completed",
+      "recoveries": {
+        "retries": 15,
+        "fallbacks": 0,
+        "degraded": 0,
+        "resumed": 0
+      }
+    },
+    {
+      "runId": "run-m4a-2-56996",
+      "status": "completed",
+      "recoveries": {
+        "retries": 9,
+        "fallbacks": 0,
+        "degraded": 0,
+        "resumed": 0
+      }
+    },
+    {
+      "runId": "run-m4a-3-57114",
+      "status": "completed",
+      "recoveries": {
+        "retries": 4,
+        "fallbacks": 0,
+        "degraded": 0,
+        "resumed": 0
+      }
+    }
+  ],
+  "completedOutOfN": "3/3"
+}

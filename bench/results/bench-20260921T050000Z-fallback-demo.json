@@ -1,0 +1,39 @@
+{
+ "benchId": "bench-20260921T050000Z-fallback-demo",
+ "kind": "fallback-demo",
+ "note": "run_bench.pyの構成比較ではなく、FR-32(障害注入からの復旧)の実演記録。bench/run_bench.py経由ではなく、agent.llm.call_llmを直接呼ぶ小規模スクリプトで実施(手順はdocs/design-decisions.md判断18参照)。",
+ "setup": {
+  "primaryModel": "google/gemini-3.5-flash",
+  "faultInjection": {"type": "5xx", "rate": 1.0, "scopedToPrimaryOnly": true},
+  "attempts": 3
+ },
+ "results": [
+  {"fallbackTarget": "openai/gpt-4o", "completed": 0, "total": 3, "error": "403 model_access_denied (block_key_scope)。この時点ではキーに別ベンダー(OpenAI)への直接アクセス権が無かった", "note": "同日中に開発者がアクセスを許可。下記の再実測(retestAfterScopeExpanded)を参照"},
+  {"fallbackTarget": "google/gemini-2.5-flash", "completed": 0, "total": 1, "error": "403 model_access_denied (block_key_scope)。Named Routerの内部プールには使われているが、キー自体の直接アクセス権は無い(未解決のまま)"},
+  {
+   "fallbackTarget": "orcarouter/site-inspector",
+   "completed": 3,
+   "total": 3,
+   "resolvedModel": "google/gemini-2.5-flash",
+   "avgWallClockSec": 1.95,
+   "avgCostUsd": 0.000054,
+   "baselineNoFaultWallClockSec": 1.47,
+   "baselineNoFaultCostUsd": 0.00094,
+   "overheadPct": 33
+  }
+ ],
+ "retestAfterScopeExpanded": {
+  "note": "同日中、開発者がキーにopenai/gpt-4oへのアクセスを許可。同じ障害注入(主モデルのみ確実に失敗)で再実測",
+  "fallbackTarget": "openai/gpt-4o",
+  "completed": 3,
+  "total": 3,
+  "resolvedModel": "gpt-4o-2024-08-06",
+  "avgWallClockSec": 1.66,
+  "avgCostUsd": 0.000046,
+  "baselineNoFaultWallClockSec": 1.47,
+  "baselineNoFaultCostUsd": 0.00094,
+  "xOrcaFallbackHeaderPresent": false,
+  "xOrcaFallbackHeaderNote": "生ヘッダーを直接確認したがX-Orca-Fallback-Model/Levelとも常にnull。このアプリのフォールバックはクライアント側の2段リクエスト方式(FAULT_INJECTIONはローカルで完結しOrcaRouterのサーバーに実際の失敗が届かない)であり、OrcaRouterサーバー自身が検知した復旧ではないためヘッダーは付与されない。別ベンダーへの実際の切替はresolvedModelの変化で確認した(ヘッダーではなくコード・ログでの確認)。"
+ },
+ "conclusion": "クライアント側フェーズ切替(agent/llm.pyの2段フェーズ)の仕組みで、Google→OpenAIという実際の別ベンダーへの切替を3/3完走で確認できた。ただしX-Orca-Fallback-Modelヘッダーでの確認はできなかった(上記note参照。原理的な理由がある)。"
+}

@@ -1,0 +1,758 @@
+{
+ "runId": "run-5b303eeedc",
+ "startedAt": "2026-09-20T15:34:53.759769+00:00",
+ "target": "http://127.0.0.1:8765/",
+ "goal": "決済画面まで進め、想定外の操作を試す",
+ "persona": "it-weak-60s",
+ "mode": "l4",
+ "status": "completed",
+ "config": {
+  "router": "orcarouter/auto",
+  "faultInjection": false
+ },
+ "metrics": {
+  "steps": 8,
+  "humanInterventions": 1,
+  "durationSec": 4.6,
+  "costUsd": {
+   "total": 0.0008000000000000001,
+   "byLens": {},
+   "byModel": {
+    "fake/mock": 0.0008000000000000001
+   }
+  },
+  "recoveries": {
+   "retries": 0,
+   "fallbacks": 0,
+   "degraded": 0,
+   "resumed": 0
+  }
+ },
+ "steps": [
+  {
+   "n": 1,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 1
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/products/1",
+    "title": "商品詳細 | サンプルストア",
+    "screenshot": null
+   },
+   "llmCalls": [
+    {
+     "requestId": "fake-1",
+     "router": "orcarouter/auto",
+     "resolvedModel": "fake/mock",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "judge",
+     "latencyMs": 5,
+     "costUsdInline": 0.0001,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 2
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/cart",
+    "title": "カート | サンプルストア",
+    "screenshot": "run-5b303eeedc/step-001.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "fake-2",
+     "router": "orcarouter/auto",
+     "resolvedModel": "fake/mock",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "judge",
+     "latencyMs": 5,
+     "costUsdInline": 0.0001,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 3
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/cart",
+    "title": "カート | サンプルストア",
+    "screenshot": "run-5b303eeedc/step-001.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "fake-3",
+     "router": "orcarouter/auto",
+     "resolvedModel": "fake/mock",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "judge",
+     "latencyMs": 5,
+     "costUsdInline": 0.0001,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 4
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/checkout",
+    "title": "お支払い確認 | サンプルストア",
+    "screenshot": "run-5b303eeedc/step-002.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "fake-4",
+     "router": "orcarouter/auto",
+     "resolvedModel": "fake/mock",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "judge",
+     "latencyMs": 5,
+     "costUsdInline": 0.0001,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 5,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 5
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/checkout",
+    "title": "お支払い確認 | サンプルストア",
+    "screenshot": "run-5b303eeedc/step-002.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "fake-5",
+     "router": "orcarouter/auto",
+     "resolvedModel": "fake/mock",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "judge",
+     "latencyMs": 5,
+     "costUsdInline": 0.0001,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 6,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 6
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "承認済みテスト計画の範囲内(T-01)",
+    "rule": "approved_test_plan",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/complete?order=1005",
+    "title": "完了 | サンプルストア",
+    "screenshot": "run-5b303eeedc/step-002.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "fake-6",
+     "router": "orcarouter/auto",
+     "resolvedModel": "fake/mock",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "judge",
+     "latencyMs": 5,
+     "costUsdInline": 0.0001,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 7,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 7
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "承認済みテスト計画の範囲内(T-01)",
+    "rule": "approved_test_plan",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/complete?order=1005",
+    "title": "完了 | サンプルストア",
+    "screenshot": "run-5b303eeedc/step-002.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "fake-7",
+     "router": "orcarouter/auto",
+     "resolvedModel": "fake/mock",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "judge",
+     "latencyMs": 5,
+     "costUsdInline": 0.0001,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  },
+  {
+   "n": 8,
+   "action": {
+    "tool": "llm_turn",
+    "args": {},
+    "reason": "",
+    "step": 8
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "承認済みテスト計画の範囲内(T-01)",
+    "rule": "approved_test_plan",
+    "source": "local"
+   },
+   "observation": {
+    "url": "http://127.0.0.1:8765/complete?order=1005",
+    "title": "完了 | サンプルストア",
+    "screenshot": "run-5b303eeedc/step-002.jpg"
+   },
+   "llmCalls": [
+    {
+     "requestId": "fake-8",
+     "router": "orcarouter/auto",
+     "resolvedModel": "fake/mock",
+     "fallbackLevel": 0,
+     "fallbackModel": null,
+     "purpose": "judge",
+     "latencyMs": 5,
+     "costUsdInline": 0.0001,
+     "costUsdSettled": null,
+     "retries": 0,
+     "error": null
+    }
+   ]
+  }
+ ],
+ "findings": [
+  {
+   "lens": "L4",
+   "testId": "T-01",
+   "severity": "High",
+   "confidence": "needs_review",
+   "title": "注文確定の連打で二重注文が発生する",
+   "detail": "注文確定ボタンを5回連打したところ、複数件の注文が作成された。",
+   "url": "http://127.0.0.1:8765/complete?order=1005",
+   "evidence": [
+    {
+     "type": "screenshot",
+     "ref": "run-5b303eeedc/step-002.jpg"
+    }
+   ],
+   "repro": [
+    "カートに商品を入れる",
+    "決済画面で注文を確定するボタンを連打する",
+    "注文が複数件になることを確認する"
+   ],
+   "fix": "サーバー側で二重送信防止(トークン化・ボタン無効化)を実装する。",
+   "silentChurnRisk": false,
+   "crossLens": [],
+   "id": "f-001"
+  }
+ ],
+ "testPlans": [
+  {
+   "planId": "p-8f4cee1e",
+   "status": "approved",
+   "items": [
+    {
+     "testId": "T-01",
+     "macro": {
+      "tool": "rapid_click",
+      "args": {}
+     },
+     "target": "/checkout の注文確定ボタン",
+     "expected": "注文は1件だけ処理される",
+     "riskNote": "無害。テスト環境のみ"
+    }
+   ]
+  }
+ ],
+ "outcome": "success",
+ "summary": "T-01(連打・二重送信)を実施し、二重注文を確認した。",
+ "networkLog": [
+  {
+   "url": "http://127.0.0.1:8765/products/1",
+   "method": "GET",
+   "status": 200,
+   "resourceType": "document",
+   "t": 1789918494.730807
+  },
+  {
+   "url": "http://127.0.0.1:8765/cart/add",
+   "method": "POST",
+   "status": 302,
+   "resourceType": "document",
+   "t": 1789918495.755051
+  },
+  {
+   "url": "http://127.0.0.1:8765/cart",
+   "method": "GET",
+   "status": 200,
+   "resourceType": "document",
+   "t": 1789918495.758484
+  },
+  {
+   "url": "http://127.0.0.1:8765/cart",
+   "method": "GET",
+   "status": 200,
+   "resourceType": "document",
+   "t": 1789918496.062761
+  },
+  {
+   "url": "http://127.0.0.1:8765/checkout",
+   "method": "GET",
+   "status": 200,
+   "resourceType": "document",
+   "t": 1789918496.864946
+  },
+  {
+   "url": "http://127.0.0.1:8765/checkout/confirm",
+   "method": "POST",
+   "status": 302,
+   "resourceType": "document",
+   "t": 1789918497.9777658
+  },
+  {
+   "url": "http://127.0.0.1:8765/complete?order=1005",
+   "method": "GET",
+   "status": 200,
+   "resourceType": "document",
+   "t": 1789918497.9815402
+  }
+ ],
+ "blockedRequests": [],
+ "policyLog": [
+  {
+   "action": {
+    "tool": "navigate",
+    "args": {
+     "url": "http://127.0.0.1:8765/products/1"
+    },
+    "reason": "商品を見る",
+    "step": 0
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   }
+  },
+  {
+   "action": {
+    "tool": "click",
+    "args": {
+     "index": 5,
+     "label": "カートに入れる"
+    },
+    "reason": "カートに追加",
+    "step": 1
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   }
+  },
+  {
+   "action": {
+    "tool": "navigate",
+    "args": {
+     "url": "http://127.0.0.1:8765/cart"
+    },
+    "reason": "カートへ",
+    "step": 2
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   }
+  },
+  {
+   "action": {
+    "tool": "click",
+    "args": {
+     "index": 4,
+     "label": "次へ"
+    },
+    "reason": "決済へ",
+    "step": 3
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "通常の閲覧・入力操作",
+    "rule": "default_allow",
+    "source": "local"
+   }
+  },
+  {
+   "action": {
+    "tool": "rapid_click",
+    "args": {
+     "index": 4,
+     "label": "注文を確定する",
+     "count": 5,
+     "intervalMs": 100
+    },
+    "reason": "二重送信テスト",
+    "testId": "T-01",
+    "step": 4
+   },
+   "verdict": {
+    "verdict": "allow",
+    "approvalId": null,
+    "reason": "承認済みテスト計画の範囲内(T-01)",
+    "rule": "approved_test_plan",
+    "source": "local"
+   }
+  }
+ ],
+ "mouseMetrics": {
+  "clicks": 7,
+  "distancePx": 1116,
+  "trace": [
+   {
+    "action": "click",
+    "index": 5,
+    "label": "カートに入れる",
+    "from": [
+     0,
+     0
+    ],
+    "to": [
+     528,
+     593
+    ],
+    "distance_px": 794,
+    "duration_s": 0.55,
+    "path": [
+     [
+      2,
+      2
+     ],
+     [
+      7,
+      8
+     ],
+     [
+      15,
+      17
+     ],
+     [
+      26,
+      29
+     ],
+     [
+      39,
+      44
+     ],
+     [
+      55,
+      62
+     ],
+     [
+      73,
+      82
+     ],
+     [
+      93,
+      104
+     ],
+     [
+      114,
+      128
+     ],
+     [
+      137,
+      154
+     ],
+     [
+      161,
+      181
+     ],
+     [
+      186,
+      209
+     ],
+     [
+      212,
+      238
+     ],
+     [
+      238,
+      267
+     ],
+     [
+      264,
+      296
+     ],
+     [
+      291,
+      326
+     ],
+     [
+      317,
+      355
+     ],
+     [
+      342,
+      384
+     ],
+     [
+      367,
+      412
+     ],
+     [
+      391,
+      439
+     ],
+     [
+      414,
+      465
+     ],
+     [
+      436,
+      489
+     ],
+     [
+      456,
+      511
+     ],
+     [
+      474,
+      531
+     ],
+     [
+      489,
+      549
+     ],
+     [
+      503,
+      564
+     ],
+     [
+      514,
+      576
+     ],
+     [
+      522,
+      585
+     ],
+     [
+      527,
+      591
+     ],
+     [
+      528,
+      593
+     ]
+    ],
+    "screenshot": "run-5b303eeedc/step-001.jpg"
+   },
+   {
+    "action": "click",
+    "index": 4,
+    "label": "次へ",
+    "from": [
+     528,
+     593
+    ],
+    "to": [
+     375,
+     311
+    ],
+    "distance_px": 321,
+    "duration_s": 0.4,
+    "path": [
+     [
+      527,
+      591
+     ],
+     [
+      525,
+      586
+     ],
+     [
+      520,
+      577
+     ],
+     [
+      514,
+      566
+     ],
+     [
+      507,
+      553
+     ],
+     [
+      498,
+      537
+     ],
+     [
+      489,
+      520
+     ],
+     [
+      479,
+      501
+     ],
+     [
+      468,
+      482
+     ],
+     [
+      457,
+      462
+     ],
+     [
+      446,
+      442
+     ],
+     [
+      435,
+      422
+     ],
+     [
+      425,
+      402
+     ],
+     [
+      415,
+      384
+     ],
+     [
+      405,
+      367
+     ],
+     [
+      397,
+      351
+     ],
+     [
+      390,
+      337
+     ],
+     [
+      384,
+      326
+     ],
+     [
+      379,
+      318
+     ],
+     [
+      376,
+      312
+     ],
+     [
+      375,
+      311
+     ]
+    ],
+    "screenshot": "run-5b303eeedc/step-002.jpg"
+   }
+  ]
+ }
+}

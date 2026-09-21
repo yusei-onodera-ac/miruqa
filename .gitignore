@@ -1,0 +1,63 @@
+# Java / Maven / Gradle
+target/
+build/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+!web/.mvn/wrapper/maven-wrapper.jar
+.gradle/
+
+# Node
+node_modules/
+dist/
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.settings/
+.classpath
+.project
+.metadata/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Codeのローカル状態(スケジュールタスクのロック等。提出物に含めない)
+.claude/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# 実行ログ・成果物（デモ用のサンプルだけ runs/samples/ に置いてコミットする）
+logs/
+workspace/
+runs/*
+!runs/samples/
+bench/results/*.local.json
+
+# 移植元の実行時に生成されるもの
+reference/agent-ai/workspace/
+reference/agent-ai/logs/
+
+# v0.6: Java層のDB(H2ファイルモード)・模擬メール出力・テナントごとの保管ディレクトリ
+web/data/
+*.mv.db
+*.trace.db
+outbox/
+storage/
+
+# v0.6 P2: ドメイン所有確認の実行時トークンを置く場所(実行のたびに変わるため)
+demo-site/well-known/

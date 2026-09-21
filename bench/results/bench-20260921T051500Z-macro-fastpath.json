@@ -1,0 +1,21 @@
+{
+ "benchId": "bench-20260921T051500Z-macro-fastpath",
+ "kind": "macro-code-fastpath",
+ "note": "run_bench.pyの構成比較ではなく、判断21(固定手順にLLMは要らない)の前後比較。T-01(連打)・T-02(手順スキップ)を手作りのTestCaseで、agent.loop._execute_test_caseを直接呼んで比較(詳細はdocs/design-decisions.md判断21参照)。",
+ "site": "demo-site@http://127.0.0.1:8765/",
+ "results": [
+  {
+   "testCaseId": "TC-101",
+   "title": "連打による二重注文の検証(T-01、macro=rapid_click)",
+   "before": {"llmCallCount": 2, "costUsd": 0.009926, "verdict": "fail", "actual": "連打によって注文が5件作成された(/__test/stateで確認、想定は1件)"},
+   "after": {"llmCallCount": 0, "costUsd": 0.0, "verdict": "fail", "actual": "連打によって注文が5件作成された(/__test/stateで確認、想定は1件)"}
+  },
+  {
+   "testCaseId": "TC-102",
+   "title": "手順スキップによる不正注文完了の検証(T-02、macro=navigate_direct)",
+   "before": {"llmCallCount": 1, "costUsd": 0.008016, "verdict": "fail", "actual": "手順を踏まずに注文が成立した(注文数の変化: 0、完了画面の表示: True)"},
+   "after": {"llmCallCount": 0, "costUsd": 0.0, "verdict": "fail", "actual": "手順を踏まずに注文が成立した(注文数の変化: 0、完了画面の表示: True)"}
+  }
+ ],
+ "conclusion": "2件とも、コード実行(LLM呼び出し0件)でLLM実行と完全に同一のverdict・actual(コード根拠judging.judge()による判定のため)を再現できた。macroが既に決まっている固定手順は、検出品質を落とさずLLM呼び出しとコストを100%削減できることを実測した。対象はrapid_click/navigate_directのみ(override_param/fill_abnormalは対象フィールドの特定にページ依存の判断が要るため、今回は対象外のままLLMループを維持)。"
+}

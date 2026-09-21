@@ -1,0 +1,13 @@
+{
+  "measurement": "M4b",
+  "note": "計画のn=5から、実際のLLM費用が「ほぼ$0」という当初見積りより大きかった(3回で約$0.27)ため、n=3で打ち切った。緊急停止は協調的(次のステップ境界・LLM呼び出し前でのみ検出)であり、その場で実行中のLLM呼び出し・ステップが終わるまで反映されないことを実測で確認した。",
+  "planId": "p-f6458088",
+  "results": [
+    {"runId": "run-8afedcfc94", "elapsedSec": 19.542, "finalStatus": "cancelled"},
+    {"runId": "run-f03ba5bfc1", "elapsedSec": "30秒超(ポーリング打ち切り後に確認したところcancelled済みだった。正確な秒数は未計測)", "finalStatus": "cancelled"},
+    {"runId": "run-fc82749aa2", "elapsedSec": 5.064, "finalStatus": "cancelled"}
+  ],
+  "minSec": 5.064,
+  "maxSec": "30超(未確定)",
+  "costUsdForThisMeasurement": 0.27
+}

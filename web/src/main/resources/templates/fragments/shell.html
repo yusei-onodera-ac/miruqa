@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<body>
+  <!-- 全画面共通のヘッダー(製品名・ナビ・ユーザーメニュー・ログアウト)。
+       開発者のレビュー対応: プロジェクト詳細など、これまでヘッダーの無かった画面にも入れる。 -->
+  <!-- 実行の状態バッジ(ダッシュボード・履歴・プロジェクト詳細で共通)。ワーカーの内部状態文字列
+       (queued/running/waiting_approval/completed/failed/cancelled/interrupted/timeout)を
+       日本語+■印にする(第3a章: 英語の内部識別子をそのまま出さない)。 -->
+  <span th:fragment="runStatusMark(status)">
+    <span class="v6-mark pass" th:if="${status == 'completed'}">完了</span>
+    <span class="v6-mark fail" th:if="${status == 'failed'}">失敗</span>
+    <span class="v6-mark review" th:if="${status == 'cancelled'}">停止</span>
+    <span class="v6-mark review" th:if="${status == 'interrupted'}">中断</span>
+    <span class="v6-mark review" th:if="${status == 'timeout'}">タイムアウト</span>
+    <span class="v6-mark review" th:if="${status == 'queued'}">待機中</span>
+    <span class="v6-mark review" th:if="${status == 'running' or status == 'waiting_approval'}">実行中</span>
+    <span class="v6-mark info"
+          th:if="${status != 'completed' and status != 'failed' and status != 'cancelled' and status != 'interrupted' and status != 'timeout' and status != 'queued' and status != 'running' and status != 'waiting_approval'}"
+          th:text="${status}"></span>
+  </span>
+
+  <header th:fragment="header(current)" class="v6-nav">
+    <span class="v6-mono" style="font-weight:700;color:var(--v6-ink)" th:text="${productName}">MiruQA</span>
+    <a th:href="@{/dashboard}" th:classappend="${current == 'dashboard'} ? 'current'">ダッシュボード</a>
+    <a th:href="@{/projects}" th:classappend="${current == 'projects'} ? 'current'">プロジェクト</a>
+    <a th:href="@{/findings}" th:classappend="${current == 'findings'} ? 'current'">不具合一覧</a>
+    <a th:href="@{/history}" th:classappend="${current == 'history'} ? 'current'">履歴</a>
+    <span style="margin-left:auto; display:flex; gap:16px; align-items:center">
+      <span class="v6-mono" th:if="${currentUserEmail}" th:text="${currentUserEmail}" style="color:var(--v6-muted); font-size:12px"></span>
+      <a th:href="@{/logout}">ログアウト</a>
+    </span>
+  </header>
+</body>
+</html>
