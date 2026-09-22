@@ -41,7 +41,8 @@ URLと（あれば）仕様書を渡すと、AIエージェントが**実際に�
 
 
 <img width="1587" height="2245" alt="miruQAポスター" src="https://github.com/user-attachments/assets/e3574a8c-88d8-4bb4-aac1-c7974205c376" />
-[miruQAチラシ.pdf](https://github.com/user-attachments/files/32498188/miruQA.pdf)
+<img width="1655" height="2340" alt="miruQAチラシ-1" src="https://github.com/user-attachments/assets/87e95b1c-9ac7-4e2c-99b1-675d86eb2d9e" />
+
 
 
 
