@@ -28,7 +28,7 @@
     <a th:href="@{/history}" th:classappend="${current == 'history'} ? 'current'">履歴</a>
     <a th:href="@{/mypage}" th:classappend="${current == 'mypage'} ? 'current'">マイページ</a>
     <span style="margin-left:auto; display:flex; gap:16px; align-items:center">
-      <a th:if="${headerCreditBalance != null}" th:href="@{/mypage}" class="v6-mono" style="font-size:12px" th:text="${headerCreditBalance} + 'cr'"></a>
+      <a id="headerCreditBalance" th:if="${headerCreditBalance != null}" th:href="@{/mypage}" class="v6-mono" style="font-size:12px" th:text="${headerCreditBalance} + 'cr'"></a>
       <span class="v6-mono" th:if="${currentUserEmail}" th:text="${currentUserEmail}" style="color:var(--v6-muted); font-size:12px"></span>
       <a th:href="@{/logout}">ログアウト</a>
     </span>

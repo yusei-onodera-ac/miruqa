@@ -555,6 +555,16 @@ function poll() {
         document.getElementById("resumeBtn").style.display = run.status === "paused" ? "" : "none";
         document.getElementById("creditBalance").textContent =
           (data.creditBalance === undefined || data.creditBalance === null) ? "-" : data.creditBalance;
+        // 指揮官バグ報告(2026-09-22): ヘッダーの残高バッジ(headerCreditBalance)は
+        // ページ読み込み時にサーバー側で1回だけ計算される値のため、このポーリングで
+        // 画面内の残高だけが動き、ヘッダーは古い値のまま食い違っていた。同じ値で
+        // 追随させる(ヘッダーが無い/残高不明のときは何もしない)。
+        if (data.creditBalance !== undefined && data.creditBalance !== null) {
+          const headerBadge = document.getElementById("headerCreditBalance");
+          if (headerBadge) {
+            headerBadge.textContent = data.creditBalance + "cr";
+          }
+        }
         if (run.status === "queued") {
           document.getElementById("progressBox").style.display = "block";
           const ahead = run.queuedAheadCount || 0;
