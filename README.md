@@ -38,3 +38,10 @@ URLと（あれば）仕様書を渡すと、AIエージェントが**実際に�
 - OrcaRouter Guardrails側の電話番号マスクは、ハイフンなし11桁・国際表記（`+81…`）を通す（アプリ側のマスクは効くため二重防御ではある）。
 - 緊急停止は協調的で、最大30秒以上かかる場合がある。
 - コストのルーター比較は n=1〜2 と小さく、参考値。
+
+
+<img width="1587" height="2245" alt="miruQAポスター" src="https://github.com/user-attachments/assets/e3574a8c-88d8-4bb4-aac1-c7974205c376" />
+[miruQAチラシ.pdf](https://github.com/user-attachments/files/32498188/miruQA.pdf)
+
+
+
