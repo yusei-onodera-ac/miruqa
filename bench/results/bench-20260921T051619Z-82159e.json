@@ -64,5 +64,5 @@
    "agreementWithBase": null
   }
  ],
- "sessionAffinity": "ON (開発者がこの実行の直前にコンソールで切り替え。実行後にOFFへ戻す連絡予定)"
+ "sessionAffinity": "ON (おのゆーがこの実行の直前にコンソールで切り替え。実行後にOFFへ戻す連絡予定)"
 }

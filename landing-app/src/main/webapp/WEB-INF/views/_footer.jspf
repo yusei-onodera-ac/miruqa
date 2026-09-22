@@ -3,7 +3,7 @@
 <footer class="site-footer">
   <div class="wrap foot">
     <div class="foot-main">
-      <img src="${pageContext.request.contextPath}/static/img/logo.png" alt="MiruQA" width="150" height="46">
+      <img src="${pageContext.request.contextPath}/static/img/logo.png" alt="MiruQA" width="156" height="46">
       <p class="muted">仕様書から、UIテストを作って、実行する。</p>
     </div>
     <div class="foot-links">

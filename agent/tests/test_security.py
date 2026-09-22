@@ -85,7 +85,7 @@ class CheckNetlocSafeTest(unittest.TestCase):
 
 
 class HostnameDenylistTest(unittest.TestCase):
-    """L-4: 審査員・協賛企業・政府機関等のホスト名の拒否リスト(開発者からの指摘、2026-09-21)。"""
+    """L-4: 審査員・協賛企業・政府機関等のホスト名の拒否リスト(指揮官指摘、2026-09-21)。"""
 
     def setUp(self):
         self._original_suffixes = config.DENYLIST_HOSTNAME_SUFFIXES

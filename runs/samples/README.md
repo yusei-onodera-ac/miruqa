@@ -6,7 +6,7 @@ LLM/ネットなしでもデモできるように、実行結果をコミット�
 
 | runId | 内容 |
 |---|---|
-| `run-0b84031e60` | **実物・実LLM**(`google/gemini-3.5-flash`、OrcaRouter経由)。`demo-site/spec/spec.md`(20項目)を取り込み、下見で7画面・33件のテスト項目書を生成、全項目を承認して実行。**指摘22件**(送料不一致・特商法ページへのリンク欠落など、複数のTestCase横断でconfirmed多数)。**実測コスト$0.6072**、107ステップ。仕様トレーサビリティ(`coverage.specItems`: 20項目中16項目をカバー)・テスト項目の合否(`testResults`、33件)を含む新形式(`docs/contracts.md`のv0.5スキーマ: `planId`/`specIds`/`testResults`/`exploratory`/`coverage`。`goal`/`persona`/`mode`は無い)。この回の探索的テストはLLM呼び出しの復旧不能な失敗により0件で打ち切られた(`exploratory.note`にその旨を記録。品を落とさず安全側に倒れることの実例として残す。**別の実行では探索で8〜9件の気になった点を検出できることを確認済み**)。Java層(`web/`)の新UIから、この実行をブラウザで見た目確認済み |
+| `run-0b84031e60` | **実物・実LLM**(`google/gemini-3.5-flash`、OrcaRouter経由)。`demo-site/spec/spec.md`(20項目)を取り込み、下見で7画面・33件のテスト項目書を生成、全項目を承認して実行。**指摘22件**(送料不一致・特商法ページへのリンク欠落など、複数のTestCase横断でconfirmed多数)。**実測コスト$0.6072**、107ステップ。仕様トレーサビリティ(`coverage.specItems`: 20項目中16項目をカバー)・テスト項目の合否(`testResults`、33件)を含む新形式(`docs/contracts.md`のv0.5スキーマ: `planId`/`specIds`/`testResults`/`exploratory`/`coverage`。`goal`/`persona`/`mode`は無い)。この回の探索的テストはLLM呼び出しの復旧不能な失敗により0件で打ち切られた(`exploratory.note`にその旨を記録。品を落とさず安全側に倒れることの実例として残す。**別の実行では探索で8〜9件の気になった点を検出できることを確認済み**、詳細は`docs/STATUS.md`のM4)。Java層(`web/`)の新UIから、この実行をブラウザで見た目確認済み(スクリーンショットは`docs/STATUS-web.md`参照) |
 
 Java層のウィザードから作成した場合、`run.planId`(`p-6838881f`)・`specIds`(`s-7b4b6be3`)に対応する
 `runs/plans/`・`runs/specs/`のデータは`.gitignore`対象のため同梱していない(標準ライブラリの

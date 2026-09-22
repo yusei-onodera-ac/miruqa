@@ -135,11 +135,13 @@ class OrphanedStateCleanupTest(unittest.TestCase):
         plan = json.loads((config.PLANS_DIR / "p-ready" / "plan.json").read_text(encoding="utf-8"))
         self.assertEqual("ready", plan["status"])
 
-    def test_running_run_becomes_interrupted(self):
+    def test_running_run_becomes_paused(self):
+        """v0.8第6章: ワーカー再起動も「中断(paused)」で確定し、再開できるようにする。"""
         self._write_run("run-orphan", "running")
         server._cleanup_orphaned_state()
         run = json.loads((config.RUNS_DIR / "run-orphan" / "run.json").read_text(encoding="utf-8"))
-        self.assertEqual("interrupted", run["status"])
+        self.assertEqual("paused", run["status"])
+        self.assertEqual("worker_restart", run["pauseReason"])
 
     def test_completed_run_is_untouched(self):
         self._write_run("run-done", "completed")
@@ -231,12 +233,82 @@ class ExecutePlanCancellationE2ETest(unittest.TestCase):
 
         run = loop.execute_plan(plan_id, run_id=run_id, on_event=on_event)
 
-        self.assertEqual("cancelled", run.data["status"])
+        # v0.8第6章: 緊急停止は"cancelled"(終端)ではなく"paused"(再開可能)として確定する
+        self.assertEqual("paused", run.data["status"])
+        self.assertEqual("user_stop", run.data["pauseReason"])
         self.assertLess(
             len(run.data["testResults"]), len(test_cases),
             "緊急停止により、全TestCaseを実行し終える前に打ち切られること",
         )
-        self.assertIn("緊急停止", run.data["summary"])
+        self.assertIn("一時停止", run.data["summary"])
+        self.assertIn("再開", run.data["summary"])
+
+    def test_resume_continues_without_rerunning_completed_test_cases(self):
+        """v0.8第6章: 中断(paused)した実行を resume=True で再開すると、完了済みのTestCase
+        (verdictが"not_run"以外)は再実行せず、残りだけを実行して完走する。"""
+        plan_id = "p-resume-e2e-test"
+        run_id = "run-resume-e2e-test"
+        base_url = f"http://127.0.0.1:{DEMO_PORT}"
+        test_cases = [
+            {
+                "id": f"TC-{i:03d}", "target": "/checkout", "perspective": "P-SEC",
+                "risk": "needs_approval", "approved": True, "enabled": True,
+                "macro": {"tool": "rapid_click"}, "title": "連打テスト", "expected": "", "specRef": [],
+            }
+            for i in range(1, 6)
+        ]
+        plan = {
+            "planId": plan_id,
+            "target": f"{base_url}/",
+            "status": "approved",
+            "siteMap": {"nodes": [{"url": "/checkout", "title": "決済", "kind": "checkout"}], "edges": []},
+            "specIds": [],
+            "testCases": test_cases,
+            "authorization": {"host": f"127.0.0.1:{DEMO_PORT}", "testEnvDeclared": True},
+            "budgetStatus": {"exceeded": False, "reason": None},
+        }
+        planning.save_plan(plan)
+
+        # 1回目: 2件実行した時点で停止する(残り3件はnot_runになる)
+        completed_after_first = []
+
+        def on_event(evt):
+            if evt.get("kind") == "test_result":
+                completed_after_first.append(evt["result"]["testCaseId"])
+                if len(completed_after_first) >= 2:
+                    loop.request_cancel(run_id)
+
+        first_run = loop.execute_plan(plan_id, run_id=run_id, on_event=on_event)
+        self.assertEqual("paused", first_run.data["status"])
+        first_run_completed_ids = {
+            r["testCaseId"] for r in first_run.data["testResults"] if r["verdict"] != "not_run"
+        }
+        self.assertEqual(2, len(first_run_completed_ids))
+
+        # 探索的テストは実LLM呼び出しを伴う(MACRO_CODE_FASTPATHの対象外)ため、このテストの
+        # 主眼(TestCaseの再開)には不要。「1回目で探索まで終わっていた」体で進め、実APIを呼ばない。
+        run_path = config.RUNS_DIR / run_id / "run.json"
+        saved = json.loads(run_path.read_text(encoding="utf-8"))
+        saved["exploratoryDone"] = True
+        run_path.write_text(json.dumps(saved, ensure_ascii=False, indent=1), encoding="utf-8")
+
+        # 2回目: resume=Trueで再開。完了済みの2件は再実行されず、残り3件が実行されて完走する
+        loop._clear_cancel_request(run_id)  # 前回のキャンセル要求が残っていないことを保証する
+        second_run = loop.execute_plan(plan_id, run_id=run_id, resume=True)
+
+        self.assertEqual("completed", second_run.data["status"])
+        all_test_case_ids = [r["testCaseId"] for r in second_run.data["testResults"]]
+        self.assertEqual(
+            len(test_cases), len(all_test_case_ids),
+            "完了済みの項目を再実行して重複させていないこと(合計件数がTestCase数と一致する)",
+        )
+        self.assertEqual(set(tc["id"] for tc in test_cases), set(all_test_case_ids))
+        # 1回目で完了していた2件のtestResultが、2回目でも(再実行されずに)そのまま残っていること
+        for tcid in first_run_completed_ids:
+            self.assertEqual(
+                1, all_test_case_ids.count(tcid),
+                f"{tcid} は1回目で完了済みのため、2回目では再実行されないはず",
+            )
 
 
 if __name__ == "__main__":

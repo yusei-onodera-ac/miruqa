@@ -3,6 +3,7 @@ package ai.hack2026.web;
 import ai.hack2026.web.audit.AuditService;
 import ai.hack2026.web.auth.AppUserPrincipal;
 import ai.hack2026.web.auth.Role;
+import ai.hack2026.web.credit.CreditService;
 import ai.hack2026.web.execution.PlanRecord;
 import ai.hack2026.web.execution.PlanRecordRepository;
 import ai.hack2026.web.execution.SpecRecordRepository;
@@ -28,7 +29,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * v0.7 3.6a(自然言語での項目追加)。開発者が指定したテスト(f)(他組織のプランには追加できない)と、
+ * v0.7 3.6a(自然言語での項目追加)。指揮官指定のテスト(f)(他組織のプランには追加できない)と、
  * 監査ログ(testcase_add_requested/testcase_added)を、PlanControllerQueueTestと同じ方針
  * (SpringBootTestを使わない素のMockitoユニットテスト)で確認する。
  */
@@ -43,9 +44,10 @@ class PlanControllerCasesTest {
     private final SpecRecordRepository specRecordRepository = Mockito.mock(SpecRecordRepository.class);
     private final JobQueueService jobQueueService = Mockito.mock(JobQueueService.class);
     private final UsageService usageService = Mockito.mock(UsageService.class);
+    private final CreditService creditService = Mockito.mock(CreditService.class);
     private final AuditService auditService = Mockito.mock(AuditService.class);
     private final PlanController controller = new PlanController(
-            workerClient, planRecordRepository, specRecordRepository, jobQueueService, usageService, auditService);
+            workerClient, planRecordRepository, specRecordRepository, jobQueueService, usageService, creditService, auditService);
     private final AppUserPrincipal user = new AppUserPrincipal(1L, "test@example.com", "hash", ORG_ID, Role.OWNER, null);
 
     private void stubPlanRecord() {

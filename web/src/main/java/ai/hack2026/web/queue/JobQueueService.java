@@ -3,6 +3,7 @@ package ai.hack2026.web.queue;
 import ai.hack2026.web.credential.CredentialEncryptionService;
 import ai.hack2026.web.credential.TestCredential;
 import ai.hack2026.web.credential.TestCredentialRepository;
+import ai.hack2026.web.credit.CreditService;
 import ai.hack2026.web.execution.RunRecord;
 import ai.hack2026.web.execution.RunRecordRepository;
 import ai.hack2026.web.usage.UsageService;
@@ -31,7 +32,7 @@ import java.util.UUID;
  *
  * 「アクティブ」の判定は、ワーカーへ依頼済みのジョブについては、DBのキャッシュではなく毎回
  * ワーカーへ問い合わせて確定させる({@link #syncActiveRecords}。1組織あたりの規模が小さい前提
- * (「1組織=1顧客」規模を目標にした設計方針)のため、性能上の問題にはならない)。終了を検知した時点で、使用量を
+ * (CHANGE-v0.6.md第0a章)のため、性能上の問題にはならない)。終了を検知した時点で、使用量を
  * 1回だけ記録する({@link UsageService#recordIfAbsent})。
  */
 @Service
@@ -43,6 +44,7 @@ public class JobQueueService {
     private final RunRecordRepository runRecordRepository;
     private final WorkerClient workerClient;
     private final UsageService usageService;
+    private final CreditService creditService;
     private final TestCredentialRepository testCredentialRepository;
     private final CredentialEncryptionService credentialEncryptionService;
     private final int maxConcurrentPerOrg;
@@ -52,6 +54,7 @@ public class JobQueueService {
             RunRecordRepository runRecordRepository,
             WorkerClient workerClient,
             UsageService usageService,
+            CreditService creditService,
             TestCredentialRepository testCredentialRepository,
             CredentialEncryptionService credentialEncryptionService,
             @Value("${queue.max-concurrent-per-org:2}") int maxConcurrentPerOrg,
@@ -59,6 +62,7 @@ public class JobQueueService {
         this.runRecordRepository = runRecordRepository;
         this.workerClient = workerClient;
         this.usageService = usageService;
+        this.creditService = creditService;
         this.testCredentialRepository = testCredentialRepository;
         this.credentialEncryptionService = credentialEncryptionService;
         this.maxConcurrentPerOrg = maxConcurrentPerOrg;
@@ -160,6 +164,33 @@ public class JobQueueService {
         }
     }
 
+    /** v0.8第6章: 中断(paused)した実行を再開する。まだワーカーへ依頼していなかった(キュー待ちの
+     * まま停止した)場合は、単にキューへ戻すだけでよい。既にディスパッチ済みだった場合は、
+     * ワーカーの再開API(完了済みのTestCase・探索を再実行しない)を呼ぶ。開始前の残高確認は
+     * 呼び出し元(RunController)が行う。 */
+    public synchronized void resume(RunRecord record) {
+        MDC.put("runId", record.getRunId());
+        try {
+            if (!record.isDispatched()) {
+                record.setStatus(RunRecord.STATUS_QUEUED);
+                record.setPauseReason(null);
+                record.setFinishedAt(null);
+                runRecordRepository.save(record);
+                dispatchQueuedIfCapacity(record.getOrganizationId());
+                return;
+            }
+            Map<String, Object> testAccount = decryptedTestAccountFor(record.getProjectId(), record.getOrganizationId());
+            workerClient.resumeRun(record.getWorkerRunId(), testAccount);
+            record.setStatus(RunRecord.STATUS_RUNNING);
+            record.setPauseReason(null);
+            record.setFinishedAt(null);
+            runRecordRepository.save(record);
+            log.info("[job-queue] 再開: runId={} workerRunId={}", record.getRunId(), record.getWorkerRunId());
+        } finally {
+            MDC.remove("runId");
+        }
+    }
+
     /** ディスパッチ済みのジョブの実際の状態をワーカーへ問い合わせて確定させ、
      * 終了していれば状態を確定し使用量を記録する。戻り値は、同時実行数として数えるべきレコード
      * (ディスパッチ済みで、かつまだ終了していないもの)。キューで待っているだけ(まだディスパッチ
@@ -178,30 +209,98 @@ public class JobQueueService {
     private boolean syncOne(RunRecord record) {
         MDC.put("runId", record.getRunId());
         try {
-            String liveStatus;
+            Map<String, Object> run;
             try {
-                Map<String, Object> run = workerClient.getRun(record.getWorkerRunId());
-                liveStatus = String.valueOf(run.get("status"));
+                run = workerClient.getRun(record.getWorkerRunId());
             } catch (WorkerApiException | WorkerUnavailableException e) {
                 // ワーカーが一時的に応答しない(再起動中など)。まだアクティブ扱いのままにする
                 // (次回の同期で自然に解決する。ワーカー起動時のcleanup_orphaned_stateが、
-                // 本当に孤立していたジョブをinterrupted/failedへ整理してくれる)。
+                // 本当に孤立していたジョブをpaused/failedへ整理してくれる)。
                 log.info("[job-queue] 状態確認に失敗した、まだアクティブ扱いとする(runId={}): {}", record.getRunId(), e.toString());
                 return true;
             }
+            String liveStatus = String.valueOf(run.get("status"));
+
+            // v0.8第2章: 既存のポーリングで、LLM呼び出し単位のリアルタイム減算を行う(request_idで
+            // 冪等)。表示専用ではなく、実際にcredit_ledgerへ記録する。
+            long consumedNow = consumeNewLlmCalls(record, run);
+
             if (WORKER_ACTIVE_STATUSES.contains(liveStatus)) {
+                if (consumedNow > 0 && !creditService.hasPositiveBalance(record.getOrganizationId())) {
+                    // 残高が0以下になった: 協調停止を要求する(即座には止まらない。次回以降の
+                    // 同期で"paused"を検知する)。ここでは能動的に理由つきで止める。
+                    try {
+                        workerClient.cancelRun(record.getWorkerRunId(), "credit_exhausted");
+                        log.info("[job-queue] 残高不足のため停止を要求: runId={}", record.getRunId());
+                    } catch (WorkerApiException | WorkerUnavailableException e) {
+                        log.warn("[job-queue] 残高不足時の停止要求に失敗した(runId={}): {}", record.getRunId(), e.toString());
+                    }
+                }
                 return true;
             }
-            // 終了した(completed/failed/cancelled/interrupted)
+            // 終了した(completed/failed/paused/cancelled/interrupted)
             record.setStatus(liveStatus);
             record.setFinishedAt(Instant.now());
+            if (RunRecord.STATUS_PAUSED.equals(liveStatus)) {
+                Object reason = run.get("pauseReason");
+                record.setPauseReason(reason == null ? null : String.valueOf(reason));
+            } else {
+                // paused以外(completed/failed等)は、本当に終わったときだけ内部の原価集計を確定する
+                // (pausedは再開できるため、ここで確定すると再開後の追加費用が集計から漏れる)。
+                usageService.recordIfAbsent(record);
+            }
             runRecordRepository.save(record);
-            usageService.recordIfAbsent(record);
             log.info("[job-queue] 終了を検知: runId={} status={}", record.getRunId(), liveStatus);
             return false;
         } finally {
             MDC.remove("runId");
         }
+    }
+
+    /** v0.8第2章: run.jsonのsteps[].llmCalls[]から、まだクレジットを消費していない呼び出し
+     * (requestId単位)を見つけて消費を計上する。戻り値は、今回新たに消費したクレジット数の合計
+     * (0なら「新しい呼び出しは無かった」の意味。残高チェックのトリガー判定に使う)。 */
+    private long consumeNewLlmCalls(RunRecord record, Map<String, Object> run) {
+        Object stepsObj = run.get("steps");
+        if (!(stepsObj instanceof List<?> steps)) {
+            return 0;
+        }
+        long total = 0;
+        for (Object stepObj : steps) {
+            if (!(stepObj instanceof Map<?, ?> step)) {
+                continue;
+            }
+            Object callsObj = step.get("llmCalls");
+            if (!(callsObj instanceof List<?> calls)) {
+                continue;
+            }
+            for (Object callObj : calls) {
+                if (!(callObj instanceof Map<?, ?> call)) {
+                    continue;
+                }
+                Object requestId = call.get("requestId");
+                if (requestId == null) {
+                    continue;
+                }
+                double cost = toDouble(call.get("costUsdSettled"));
+                if (cost <= 0) {
+                    cost = toDouble(call.get("costUsdInline"));
+                }
+                boolean recorded = creditService.consume(
+                        record.getOrganizationId(), record.getRunId(), String.valueOf(requestId), cost);
+                if (recorded) {
+                    total += creditService.usdToCredits(cost);
+                }
+            }
+        }
+        return total;
+    }
+
+    private static double toDouble(Object value) {
+        if (value instanceof Number n) {
+            return n.doubleValue();
+        }
+        return 0.0;
     }
 
     /** 実行ごとのタイムアウト(O-2)。ディスパッチ済みで、開始からrunTimeoutSecを超えているものを打ち切る。 */
@@ -224,11 +323,13 @@ public class JobQueueService {
             } finally {
                 MDC.remove("runId");
             }
-            record.setStatus(RunRecord.STATUS_TIMEOUT);
+            // v0.8第6章: タイムアウトも「中断(paused)」で確定し、再開できるようにする
+            // (usageServiceへの確定記録は、pausedの間は行わない。再開後の追加費用が漏れるため)。
+            record.setStatus(RunRecord.STATUS_PAUSED);
+            record.setPauseReason("timeout");
             record.setFinishedAt(now);
-            record.setErrorReason("タイムアウト: 実行時間の上限(" + runTimeoutSec + "秒)を超えたため打ち切りました。");
+            record.setErrorReason("実行時間の上限(" + runTimeoutSec + "秒)を超えたため、一時停止しました。再開すると、続きから実行できます。");
             runRecordRepository.save(record);
-            usageService.recordIfAbsent(record);
         }
     }
 

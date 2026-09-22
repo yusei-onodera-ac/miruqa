@@ -26,6 +26,10 @@ public class RunRecord {
     public static final String STATUS_INTERRUPTED = "interrupted";
     /** このJava層が実行ごとのタイムアウトを検知して打ち切った場合。ワーカー側にはこの概念が無い。 */
     public static final String STATUS_TIMEOUT = "timeout";
+    /** v0.8第6章: 中断(残高不足・LLM障害・ワーカー再起動・タイムアウト・利用者の停止のいずれか)。
+     * 終端ではあるが、{@link #isTerminal()}のほかに{@link #isPaused()}でも判定でき、
+     * 「再開」(完了済みの項目を再実行しない再開)の対象になる。 */
+    public static final String STATUS_PAUSED = "paused";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -67,6 +71,11 @@ public class RunRecord {
     @Column(name = "error_reason", length = 2000)
     private String errorReason;
 
+    /** v0.8第6章: 中断の理由(user_stop/credit_exhausted/llm_failure/worker_restart/timeout等)。
+     * status=pausedのときだけ意味を持つ。画面の文言選びに使う(USDは出さない)。 */
+    @Column(name = "pause_reason", length = 64)
+    private String pauseReason;
+
     public Long getId() { return id; }
     public String getRunId() { return runId; }
     public void setRunId(String runId) { this.runId = runId; }
@@ -90,6 +99,8 @@ public class RunRecord {
     public void setFinishedAt(Instant finishedAt) { this.finishedAt = finishedAt; }
     public String getErrorReason() { return errorReason; }
     public void setErrorReason(String errorReason) { this.errorReason = errorReason; }
+    public String getPauseReason() { return pauseReason; }
+    public void setPauseReason(String pauseReason) { this.pauseReason = pauseReason; }
 
     public boolean isDispatched() { return workerRunId != null; }
 
@@ -97,9 +108,13 @@ public class RunRecord {
         return STATUS_QUEUED.equals(status) || STATUS_RUNNING.equals(status);
     }
 
+    public boolean isPaused() {
+        return STATUS_PAUSED.equals(status);
+    }
+
     public boolean isTerminal() {
         return STATUS_COMPLETED.equals(status) || STATUS_FAILED.equals(status)
                 || STATUS_CANCELLED.equals(status) || STATUS_INTERRUPTED.equals(status)
-                || STATUS_TIMEOUT.equals(status);
+                || STATUS_TIMEOUT.equals(status) || STATUS_PAUSED.equals(status);
     }
 }

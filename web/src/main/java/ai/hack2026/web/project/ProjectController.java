@@ -55,6 +55,7 @@ public class ProjectController {
     private final PlanRecordRepository planRecordRepository;
     private final SpecRecordRepository specRecordRepository;
     private final FindingStatusRecordRepository findingStatusRecordRepository;
+    private final ai.hack2026.web.credit.CreditService creditService;
 
     public ProjectController(
             ProjectRepository projectRepository,
@@ -68,7 +69,8 @@ public class ProjectController {
             CredentialEncryptionService credentialEncryptionService,
             PlanRecordRepository planRecordRepository,
             SpecRecordRepository specRecordRepository,
-            FindingStatusRecordRepository findingStatusRecordRepository) {
+            FindingStatusRecordRepository findingStatusRecordRepository,
+            ai.hack2026.web.credit.CreditService creditService) {
         this.projectRepository = projectRepository;
         this.auditService = auditService;
         this.domainRepository = domainRepository;
@@ -81,6 +83,7 @@ public class ProjectController {
         this.planRecordRepository = planRecordRepository;
         this.specRecordRepository = specRecordRepository;
         this.findingStatusRecordRepository = findingStatusRecordRepository;
+        this.creditService = creditService;
     }
 
     @GetMapping("/projects")
@@ -213,7 +216,7 @@ public class ProjectController {
     /** v0.7 P7(縮小): プロジェクト単位の削除。Java層のメタデータ(Plan/Run記録・仕様書記録・
      * 不具合の状態・テスト用アカウント)だけを削除する。ワーカー側のPlan/Run本体(runs/配下)は
      * 削除しない(復旧・監査のため残す。物理削除が必要な場合は、ワーカー側のディスク上で
-     * 個別に行う運用とする)。使用量の記録
+     * 個別に行う運用とする。docs/RESUME.mdのバックアップ・復元の手順を参照)。使用量の記録
      * (UsageEvent)は、内部の請求根拠として残す(削除しない)。 */
     @Transactional
     @PostMapping("/projects/{id}/delete")
@@ -246,7 +249,7 @@ public class ProjectController {
             try {
                 Map<String, Object> run = ai.hack2026.web.util.RunDisplay.resolve(workerClient, record);
                 run.put("startedAtDisplay", DisplayFormat.jst(run.get("startedAt")));
-                run.put("costDisplay", DisplayFormat.costOf(run));
+                run.put("costDisplay", DisplayFormat.creditsOf(run, creditService.getUsdToJpyRate(), creditService.getMarkupMultiplier()));
                 run.put("durationDisplay", DisplayFormat.durationOf(run));
                 executions.add(run);
             } catch (RuntimeException e) {

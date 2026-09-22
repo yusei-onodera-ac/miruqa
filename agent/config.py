@@ -51,7 +51,7 @@ SANDBOX_HOSTS = {h.strip() for h in _sandbox_raw.split(",") if h.strip()} or set
 
 # --- v0.7(第1a節、モードC=公開ページ・読み取り専用)。テスト専用のホスト名の別名: 実際は
 # ローカル(自作デモサイト)だが、モードCの検証のためだけに「公開ホスト」として扱う
-# (開発方針: 実在する第三者のサイトにはアクセスせず、自作デモサイトで検証する)。
+# (指揮官指示: 実在する第三者のサイトにはアクセスせず、自作デモサイトで検証する)。
 # 本番では未設定(空)にする。 ---
 _readonly_test_public_raw = os.environ.get("READONLY_TEST_PUBLIC_HOSTS", "")
 READONLY_TEST_PUBLIC_HOSTS = {h.strip() for h in _readonly_test_public_raw.split(",") if h.strip()}
@@ -66,7 +66,7 @@ _readonly_contact = os.environ.get("READONLY_CONTACT_URL", "")
 MIRUQA_USER_AGENT = f"MiruQA/{MIRUQA_VERSION}" + (f" (+{_readonly_contact})" if _readonly_contact else " (test-mode)")
 
 # --- 拒否リスト(L-4): 審査員・協賛企業・政府機関等のホスト名は、ALLOWED_HOSTSの設定ミスに
-# 関わらず、常に遮断する(二重の防御)。既定値は開発者からの指摘(2026-09-21)に基づく。 ---
+# 関わらず、常に遮断する(二重の防御)。既定値は指揮官指摘(2026-09-21)に基づく。 ---
 _denylist_suffixes_raw = os.environ.get("DENYLIST_HOSTNAME_SUFFIXES", ".go.jp,.lg.jp")
 DENYLIST_HOSTNAME_SUFFIXES = [s.strip().lower() for s in _denylist_suffixes_raw.split(",") if s.strip()]
 
@@ -85,6 +85,11 @@ def is_denied_hostname(hostname: str):
         if host_lower == denied or host_lower.endswith("." + denied):
             return True, f"拒否リスト(審査員・協賛企業等: {denied})に一致した"
     return False, None
+
+# --- クレジット換算(v0.8第2章。Web層のCreditServiceと同じ定数・同じ式にする。
+# .envの値はWeb層(application.properties)と共有し、片方だけ変えて表示がずれないようにする) ---
+CREDIT_USD_TO_JPY_RATE = float(os.environ.get("CREDIT_USD_TO_JPY_RATE", "150"))
+CREDIT_MARKUP_MULTIPLIER = float(os.environ.get("CREDIT_MARKUP_MULTIPLIER", "4.0"))
 
 # --- L4(能動テスト) ---
 TEST_MODE = os.environ.get("TEST_MODE", "0") == "1"
@@ -124,7 +129,7 @@ TESTCASE_MAX_CASES = int(os.environ.get("TESTCASE_MAX_CASES", "40"))  # 項目�
 TESTCASE_MAX_STEPS = int(os.environ.get("TESTCASE_MAX_STEPS", "8"))  # 1テスト項目の実行あたりのLLMターン上限
 EXPLORATORY_MAX_STEPS = int(os.environ.get("EXPLORATORY_MAX_STEPS", "30"))  # 探索的テストのステップ数上限
 # P6中核(探索の成果): 実LLMのサンプルで、探索を始めてすぐ finish_exploration を呼んで
-# 成果0件のまま終わる回があった(過去の実行事例はAPI障害が原因だったが、原因を問わず
+# 成果0件のまま終わる回があった(STATUS.md記載の事例はAPI障害が原因だったが、原因を問わず
 # 「最低限は実際に操作してから終える」歯止めを入れる)。この件数に満たないうちの
 # finish_exploration は無視し、操作を続けさせる(EXPLORATORY_MAX_STEPSの範囲内なので無限ループはしない)。
 EXPLORATORY_MIN_STEPS_BEFORE_FINISH = int(os.environ.get("EXPLORATORY_MIN_STEPS_BEFORE_FINISH", "5"))
@@ -134,11 +139,10 @@ TESTCASE_ADD_MAX_TEXT_CHARS = int(os.environ.get("TESTCASE_ADD_MAX_TEXT_CHARS", 
 TESTCASE_ADD_MAX_PROPOSALS = int(os.environ.get("TESTCASE_ADD_MAX_PROPOSALS", "5"))  # 1回の依頼で作る追加案の上限件数
 TESTCASE_ADD_MAX_REQUESTS_PER_PLAN = int(os.environ.get("TESTCASE_ADD_MAX_REQUESTS_PER_PLAN", "10"))  # プランあたりの追加依頼の上限回数(コスト上限)
 
-# --- コスト上限(FR-28の実測に基づく歯止め。2026-09-21、実測コストが記録漏れで説明できない
-# 差額になった実測を受けて追加。超えたらLLM呼び出しをその場で止め、部分結果のまま穏やかに終了する) ---
-# 「1件あたり」は run(実行)・plan(下見+項目書生成)・spec(仕様書抽出)それぞれを1スコープとして数える
-# (agent/ledger.py の check_budget 参照)。値は小さめを既定にし、検証時の想定外コストを防ぐ。
-LLM_BUDGET_PER_RUN_USD = float(os.environ.get("LLM_BUDGET_PER_RUN_USD", "0.5"))
+# --- コスト上限(FR-28の実測に基づく歯止め)。v0.8第2章: 「1件あたり$0.50の上限」は廃止した
+# (ユーザーに見える上限はWeb層のクレジット残高だけにする)。ここに残すのは、ワーカープロセス
+# 全体の1日あたりの原価上限という、暴走防止のための内部の安全弁のみ(agent/ledger.py の
+# check_budget 参照。メッセージにUSDは出さない) ---
 LLM_BUDGET_PER_DAY_USD = float(os.environ.get("LLM_BUDGET_PER_DAY_USD", "2.0"))
 
 # --- 障害注入モード(FR-32) ---
@@ -151,7 +155,7 @@ FAULT_INJECTION_RATE = float(os.environ.get("FAULT_INJECTION_RATE", "0.3"))
 WORKER_HOST = os.environ.get("WORKER_HOST", "127.0.0.1")
 WORKER_PORT = int(os.environ.get("WORKER_PORT", "8770"))
 # v0.6 P1〜P2修正: Java層とワーカー間の共有秘密。ワーカーは127.0.0.1のみで待ち受けるが、
-# それに加えた多層防御。フェイルクローズド(開発時のレビューで指摘): 秘密が空のまま起動するのを
+# それに加えた多層防御。フェイルクローズド(指揮官レビューで指摘): 秘密が空のまま起動するのを
 # 既定で拒否し、明示的にWORKER_AUTH_DISABLED=1を指定したときだけ無認証起動を許す(警告ログを出す)。
 WORKER_SHARED_SECRET = os.environ.get("WORKER_SHARED_SECRET", "")
 WORKER_AUTH_DISABLED = os.environ.get("WORKER_AUTH_DISABLED", "0") == "1"

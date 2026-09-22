@@ -9,7 +9,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
-/** v0.6 P2(L-4、開発者からの指摘 2026-09-21): 審査員・協賛企業・政府機関等のホスト名の拒否リスト。
+/** v0.6 P2(L-4、指揮官指摘 2026-09-21): 審査員・協賛企業・政府機関等のホスト名の拒否リスト。
  * agent/security.py(ワーカー側)と同じ既定値を持つ。ドメイン登録(所有確認の開始)を、
  * ALLOWED_HOSTS相当の設定に関わらず拒否する、Java側での二重の防御。 */
 @Component

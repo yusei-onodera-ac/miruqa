@@ -1,6 +1,6 @@
 """v0.7(第1a節): モードC(公開ページ・読み取り専用)のワーカー側ブラウザ層での強制。
 
-開発者が指定したテスト(a)〜(f)のうち、(a)(c)(d)(e)(f)は単体テスト(実際のPlaywrightは
+指揮官が指定したテスト(a)〜(f)のうち、(a)(c)(d)(e)(f)は単体テスト(実際のPlaywrightは
 起動せず、page.route()/page.on()を記録するだけの軽量フェイクを使う)。(b)(robots.txt)と
 一連の流れは、実際のPlaywright+デモサイトのサブプロセスを使ったE2Eテスト(test_readonly_mode_e2e)
 で確認する(agent/tests/test_l2_authorization_e2e.pyと同じ方針)。
@@ -209,7 +209,7 @@ class ReadonlyHostAllowedTest(unittest.TestCase):
             self.assertTrue(config.is_host_allowed("public.example.com", mode="readonly"))
 
     def test_test_only_alias_is_treated_as_public_even_if_actually_local(self):
-        # 開発方針: 実在する第三者のサイトにはアクセスせず、自作デモサイトを
+        # 指揮官指示: 実在する第三者のサイトにはアクセスせず、自作デモサイトを
         # テスト専用のエイリアスで「公開ホスト」扱いにして検証する。
         config.READONLY_TEST_PUBLIC_HOSTS = {"127.0.0.1:8765"}
         with patch("socket.getaddrinfo", side_effect=AssertionError("呼ばれてはいけない")):

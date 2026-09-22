@@ -53,10 +53,16 @@ public final class DisplayFormat {
         return m > 0 ? m + "分" + s + "秒" : s + "秒";
     }
 
-    /** run(ワーカーのrun.jsonをMapにしたもの)からmetrics.costUsd.totalを取り出して表示用にする。 */
-    public static String costOf(Map<?, ?> run) {
+    /** v0.8第2章: run(ワーカーのrun.jsonをMapにしたもの)からmetrics.costUsd.totalを取り出し、
+     * クレジット表示にする(USDはユーザー向け画面に出さない。換算はCreditService.usdToCredits
+     * と同じ計算をここでも行う。呼び出し元がCreditServiceの定数を渡す)。 */
+    public static String creditsOf(Map<?, ?> run, double usdToJpyRate, double markupMultiplier) {
         Object total = numberAt(run, "metrics", "costUsd", "total");
-        return total instanceof Number n ? String.format("$%.4f", n.doubleValue()) : "-";
+        if (!(total instanceof Number n)) {
+            return "-";
+        }
+        long credits = Math.round(n.doubleValue() * usdToJpyRate * markupMultiplier);
+        return credits + "cr";
     }
 
     public static String durationOf(Map<?, ?> run) {

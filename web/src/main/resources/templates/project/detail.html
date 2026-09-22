@@ -200,7 +200,8 @@
         <p class="v6-title" style="font-size:15px; color:var(--v6-fail)">プロジェクトの削除</p>
         <p class="v6-sub" style="margin-bottom:16px">
           このプロジェクトの記録(実行履歴・項目書・仕様書・テスト用アカウント)を削除します。
-          この操作は取り消せません。ワーカー側に保存された実行結果本体は削除されません。
+          この操作は取り消せません。ワーカー側に保存された実行結果本体は削除されません
+          (バックアップ・復元の手順は<code>docs/RESUME.md</code>を参照)。
         </p>
         <form method="post" th:action="@{/projects/{id}/delete(id=${project.id})}"
               onsubmit="return confirm('本当に削除しますか?この操作は取り消せません。')">

@@ -98,18 +98,16 @@ public class UsageService {
     }
 
     /** B-3: 上限に達していれば、拒否理由を返す(null=上限内)。 */
+    /** v0.8第2章: 組織の日次・月次の原価上限(内部の安全弁)。ユーザーに見えるメッセージには
+     * USDの金額を出さない(見えるのはクレジット残高だけ)。 */
     public String costCapRejectionReason(Long organizationId) {
         double today = orgCostToday(organizationId);
         double month = orgCostThisMonth(organizationId);
         if (today >= orgDailyLimitUsd) {
-            return String.format(
-                    "本日のコスト上限(%.2f USD)に達したため、新しい診断を開始できません(本日の使用量: %.4f USD)。日をまたぐか、上限の見直しをお問い合わせください。",
-                    orgDailyLimitUsd, today);
+            return "本日の利用上限に達したため、新しい診断を開始できません。日をまたぐか、上限の見直しをお問い合わせください。";
         }
         if (month >= orgMonthlyLimitUsd) {
-            return String.format(
-                    "今月のコスト上限(%.2f USD)に達したため、新しい診断を開始できません(今月の使用量: %.4f USD)。月が変わるか、上限の見直しをお問い合わせください。",
-                    orgMonthlyLimitUsd, month);
+            return "今月の利用上限に達したため、新しい診断を開始できません。月が変わるか、上限の見直しをお問い合わせください。";
         }
         return null;
     }

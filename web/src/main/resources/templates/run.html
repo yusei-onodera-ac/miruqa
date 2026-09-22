@@ -23,7 +23,9 @@
     <div style="display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:8px; margin-bottom:4px">
       <p class="v6-title" style="margin-bottom:0">実行状況・結果 <span id="statusBadge" class="v6-mark info">読み込み中</span></p>
       <span>
+        <span class="v6-sub" style="margin-right:10px">残高: <span id="creditBalance" class="v6-mono">-</span> cr</span>
         <button class="v6-btn secondary" id="stopBtn" onclick="stopRun()">実行を停止</button>
+        <button class="v6-btn" id="resumeBtn" onclick="resumeRun()" style="display:none">再開する</button>
         <button class="v6-btn secondary" id="rerunBtn" onclick="rerunRun()" style="display:none">同じ項目書で再実行</button>
       </span>
     </div>
@@ -33,7 +35,7 @@
     <div id="budgetBanner" class="v6-error" style="display:none"></div>
 
     <table class="v6-table v6-stats-table" style="margin-bottom:20px">
-      <thead><tr><th>合格</th><th>不合格</th><th>要確認</th><th>カバレッジ</th><th>High重大度</th><th>コスト(USD)</th></tr></thead>
+      <thead><tr><th>合格</th><th>不合格</th><th>要確認</th><th>カバレッジ</th><th>High重大度</th><th>消費クレジット</th></tr></thead>
       <tbody><tr id="kpiRow"><td><span class="v6-skeleton"></span></td><td><span class="v6-skeleton"></span></td><td><span class="v6-skeleton"></span></td><td><span class="v6-skeleton"></span></td><td><span class="v6-skeleton"></span></td><td><span class="v6-skeleton"></span></td></tr></tbody>
     </table>
 
@@ -56,6 +58,7 @@
     </nav>
 
     <section class="v6-tab-panel current" data-panel="findings">
+      <div id="diffBox" style="display:none; margin:16px 0"></div>
       <div class="v6-field" style="max-width:200px; margin:16px 0">
         <select id="findingOriginFilter">
           <option value="">すべて</option>
@@ -91,12 +94,12 @@
       <p class="v6-sub" id="costTotalsLine">読み込み中…</p>
       <p class="v6-title" style="font-size:14px">モデル別(このRunの実行分のみ)</p>
       <table class="v6-table" style="margin-bottom:20px">
-        <thead><tr><th>モデル</th><th>コスト(USD)</th></tr></thead>
+        <thead><tr><th>モデル</th><th>消費クレジット</th></tr></thead>
         <tbody id="costRows"></tbody>
       </table>
       <p class="v6-title" style="font-size:14px">目的別(仕様抽出・項目書生成・チャーター・実行・探索を合算。runs/ledger.jsonl実測)</p>
       <table class="v6-table">
-        <thead><tr><th>目的(purpose)</th><th>件数</th><th>即時コスト</th><th>確定コスト</th><th>エラー</th></tr></thead>
+        <thead><tr><th>目的(purpose)</th><th>件数</th><th>消費クレジット(即時値)</th><th>消費クレジット(確定値)</th><th>エラー</th></tr></thead>
         <tbody id="costPurposeRows"><tr><td colspan="5" class="v6-sub">読み込み中…</td></tr></tbody>
       </table>
     </section>
@@ -118,6 +121,11 @@
 
 <script th:inline="javascript">
 const runId = /*[[${runId}]]*/ "";
+const CREDIT_RATE = /*[[${creditRate}]]*/ 150;
+const CREDIT_MARKUP = /*[[${creditMarkup}]]*/ 4.0;
+function toCredits(costUsd) {
+  return Math.round((costUsd || 0) * CREDIT_RATE * CREDIT_MARKUP);
+}
 let stopped = false;
 let pollDelay = 1500;
 let planCasesById = {};
@@ -167,6 +175,7 @@ function badgeFor(status, outcome) {
   if (status === "waiting_approval") return ["review", "承認待ち"];
   if (status === "running") return ["review", "実行中"];
   if (status === "queued") return ["review", "待機中"];
+  if (status === "paused") return ["review", "一時停止"];
   if (status === "cancelled" || status === "interrupted") return ["review", status === "cancelled" ? "停止" : "中断"];
   return ["info", status || "不明"];
 }
@@ -199,11 +208,11 @@ function renderKpis(run) {
   const reviewN = results.filter(r => r.verdict === "needs_review").length;
   const findings = run.findings || [];
   const highN = findings.filter(f => f.severity === "High").length;
-  const cost = (run.metrics && run.metrics.costUsd && run.metrics.costUsd.total) || 0;
+  const costUsd = (run.metrics && run.metrics.costUsd && run.metrics.costUsd.total) || 0;
   const covPct = specCov.total ? Math.round((specCov.covered / specCov.total) * 100) : null;
   document.getElementById("kpiRow").innerHTML =
     `<td>${passN}</td><td>${failN}</td><td>${reviewN}</td>` +
-    `<td>${covPct === null ? "-" : covPct + "%"}</td><td>${highN}</td><td>$${cost.toFixed(4)}</td>`;
+    `<td>${covPct === null ? "-" : covPct + "%"}</td><td>${highN}</td><td>${toCredits(costUsd)}cr</td>`;
 }
 
 function renderProgress(run) {
@@ -255,7 +264,7 @@ function stopRun() {
   }).then(() => poll());
 }
 
-const TERMINAL_RUN_STATUSES = ["completed", "failed", "cancelled"];
+const TERMINAL_RUN_STATUSES = ["completed", "failed", "cancelled", "paused", "interrupted", "timeout"];
 
 function rerunRun() {
   if (!confirm("同じ承認済みの項目書で、対象を再度診断しますか?新しい実行として結果が作られます。")) {
@@ -323,6 +332,32 @@ function renderFindings(run) {
 }
 document.getElementById("findingOriginFilter").addEventListener("change", () => { if (lastRun) renderFindings(lastRun); });
 
+function diffFindingRow(f) {
+  const sevClass = f.severity === "High" ? "fail" : f.severity === "Med" ? "review" : "info";
+  return `<div class="v6-sub" style="margin:4px 0">
+    <span class="v6-mark ${sevClass}">${esc(f.severity || "-")}</span> ${esc(f.title || "(タイトルなし)")}
+  </div>`;
+}
+
+// v0.8第4章: 「前回の結果を引き継いだ」実行だけ、前回との差分(新規・修正済み・継続中)を表示する。
+function renderDiff(diff) {
+  const box = document.getElementById("diffBox");
+  if (!diff) { box.style.display = "none"; return; }
+  box.style.display = "block";
+  const newList = diff.newFindings || [];
+  const fixedList = diff.fixedFindings || [];
+  const continuingList = diff.continuingFindings || [];
+  box.innerHTML = `<div class="v6-panel">
+    <p class="v6-title" style="font-size:14px">前回(${esc(diff.previousRunId)})との差分</p>
+    <p class="v6-sub" style="margin-bottom:10px">新規の不具合 ${newList.length}件・修正済み ${fixedList.length}件・継続中 ${continuingList.length}件</p>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px">
+      <div><b class="v6-sub">新規</b>${newList.map(diffFindingRow).join("") || '<p class="v6-sub">なし</p>'}</div>
+      <div><b class="v6-sub">修正済み</b>${fixedList.map(diffFindingRow).join("") || '<p class="v6-sub">なし</p>'}</div>
+      <div><b class="v6-sub">継続中</b>${continuingList.map(diffFindingRow).join("") || '<p class="v6-sub">なし</p>'}</div>
+    </div>
+  </div>`;
+}
+
 function renderCases(run) {
   const results = run.testResults || [];
   document.getElementById("caseRows").innerHTML = results.map(r => {
@@ -383,37 +418,68 @@ function renderCost(run, breakdown) {
   const byModel = (run.metrics && run.metrics.costUsd && run.metrics.costUsd.byModel) || {};
   const rows = Object.entries(byModel);
   document.getElementById("costRows").innerHTML = rows.length
-    ? rows.map(([m, v]) => `<tr><td class="v6-mono">${esc(m)}</td><td class="v6-mono">$${Number(v).toFixed(4)}</td></tr>`).join("")
+    ? rows.map(([m, v]) => `<tr><td class="v6-mono">${esc(m)}</td><td class="v6-mono">${toCredits(Number(v))}cr</td></tr>`).join("")
     : '<tr><td colspan="2" class="v6-sub">記録なし</td></tr>';
 
   breakdown = breakdown || {};
   const byPurpose = breakdown.byPurpose || {};
   const purposeRows = Object.entries(byPurpose);
   document.getElementById("costPurposeRows").innerHTML = purposeRows.length
-    ? purposeRows.map(([p, v]) => `<tr><td class="v6-mono">${esc(p)}</td><td>${v.count}</td><td class="v6-mono">$${Number(v.costUsdInline||0).toFixed(4)}</td><td class="v6-mono">${v.costUsdSettled ? "$" + Number(v.costUsdSettled).toFixed(4) : "-"}</td><td>${v.errors||0}</td></tr>`).join("")
+    ? purposeRows.map(([p, v]) => `<tr><td class="v6-mono">${esc(p)}</td><td>${v.count}</td><td class="v6-mono">${toCredits(v.costUsdInline||0)}cr</td><td class="v6-mono">${v.costUsdSettled ? toCredits(v.costUsdSettled) + "cr" : "-"}</td><td>${v.errors||0}</td></tr>`).join("")
     : '<tr><td colspan="5" class="v6-sub">記録なし</td></tr>';
 
   if (breakdown.callCount || breakdown.callCount === 0) {
     const settledNote = breakdown.totalCostUsdSettled > 0
-      ? `確定コスト $${Number(breakdown.totalCostUsdSettled).toFixed(4)}`
-      : "確定コストは未取得(即時値のみ。GET /v1/generationが失敗しているか、まだ反映されていません)";
+      ? `確定 ${toCredits(breakdown.totalCostUsdSettled)}cr`
+      : "確定値は未取得(即時値のみ。まだ反映されていません)";
     document.getElementById("costTotalsLine").textContent =
-      `このRun(元になったPlanの下見・項目書生成分を含む)の実測: 呼び出し${breakdown.callCount}件・即時コスト合計 $${Number(breakdown.totalCostUsdInline||0).toFixed(4)}・${settledNote}`;
+      `このRun(元になったPlanの下見・項目書生成分を含む)の実測: 呼び出し${breakdown.callCount}件・消費クレジット(即時値) ${toCredits(breakdown.totalCostUsdInline||0)}cr・${settledNote}`;
   } else {
-    document.getElementById("costTotalsLine").textContent = "コスト内訳を取得できませんでした(ワーカーが古い、または応答なし)。";
+    document.getElementById("costTotalsLine").textContent = "消費クレジットの内訳を取得できませんでした(ワーカーが古い、または応答なし)。";
   }
 }
 
-function renderBudgetBanner(run) {
+const PAUSE_REASON_JA = {
+  user_stop: "操作により、一時停止しました。",
+  credit_exhausted: "残高不足のため、一時停止しました。チャージすると、続きから再開できます。",
+  llm_failure: "AIの呼び出しが繰り返し失敗したため、一時停止しました。",
+  worker_restart: "システムの再起動のため、一時停止しました。",
+  timeout: "実行時間の上限に達したため、一時停止しました。",
+  network_failure: "通信の問題のため、一時停止しました。",
+};
+
+function renderPauseBanner(run) {
   const box = document.getElementById("budgetBanner");
-  const status = run.budgetStatus;
-  if (status && status.exceeded) {
+  if (run.status === "paused") {
     box.style.display = "block";
-    box.innerHTML = `<b>コスト上限に達したため、LLM呼び出しを打ち切りました。</b> ${esc(status.reason || "")}<br>` +
-      `<span class="v6-sub">部分結果のみ記録されています。上限は環境変数 LLM_BUDGET_PER_RUN_USD / LLM_BUDGET_PER_DAY_USD で調整できます。</span>`;
+    const msg = PAUSE_REASON_JA[run.pauseReason] || "一時停止しました。";
+    const chargeLink = run.pauseReason === "credit_exhausted" ? ` <a href="/credits/charge">チャージする</a>` : "";
+    box.innerHTML = `<b>${esc(msg)}</b>${chargeLink}<br><span class="v6-sub">それまでの部分結果は残っています。「再開する」を押すと、完了済みの項目を再実行せず、続きから実行できます。</span>`;
+  } else if (run.budgetStatus && run.budgetStatus.exceeded) {
+    // 内部の安全弁(組織の日次・月次上限。ワーカー全体の1日あたりの上限)。ユーザーにはUSDを出さない。
+    box.style.display = "block";
+    box.innerHTML = `<b>利用上限に達したため、一時停止しました。</b><br><span class="v6-sub">それまでの部分結果は残っています。</span>`;
   } else {
     box.style.display = "none";
   }
+}
+
+function resumeRun() {
+  const csrfToken = document.querySelector('meta[name="_csrf"]').content;
+  const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+  const btn = document.getElementById("resumeBtn");
+  btn.disabled = true;
+  fetch(`/runs/${runId}/resume`, {
+    method: "POST",
+    headers: {[csrfHeader]: csrfToken},
+  }).then(r => {
+    if (!r.ok && r.status !== 302) {
+      alert(r.status === 402
+        ? "残高が不足しているため再開できません。チャージしてください。"
+        : "再開できませんでした(HTTP " + r.status + ")。");
+    }
+    return poll();
+  }).finally(() => { btn.disabled = false; });
 }
 
 function renderTimeline(run) {
@@ -428,11 +494,37 @@ function renderTimeline(run) {
 
 function renderReport(run) {
   const box = document.getElementById("reportBox");
-  if (run.status === "completed" || run.status === "failed") {
-    box.innerHTML = `<a class="v6-btn" href="/runs/${runId}/report" target="_blank">レポートを開く</a>
-      <a class="v6-btn secondary" href="/runs/${runId}/export.csv">CSVで書き出す</a>
-      <iframe class="report" src="/runs/${runId}/report" style="margin-top:14px; width:100%; height:600px; border:1px solid var(--rule)"></iframe>`;
+  if (run.status !== "completed" && run.status !== "failed") {
+    return;
   }
+  const reportUrl = `/runs/${runId}/report`;
+  // 指揮官バグ報告(2026-09-22)対応: ワーカー/Web層の一時的な不調・再起動と重なると、
+  // iframeにブラウザ素のエラー画面がそのまま出てしまっていた(AC-21)。iframeのonerrorだけでは
+  // 検知できないため、先に同じURLをfetchし、成功したときだけiframeに差し替える。
+  // また、既に同じURLを表示済みなら作り直さない(このpoll()は完了後も一定間隔で呼ばれ続けるため、
+  // 毎回iframeを再生成するとレポートが表示のたびにちらつく)。
+  if (box.dataset.reportUrl === reportUrl) {
+    return;
+  }
+  box.dataset.reportUrl = reportUrl;
+  box.innerHTML = `<a class="v6-btn" href="${reportUrl}" target="_blank">レポートを開く</a>
+    <a class="v6-btn secondary" href="/runs/${runId}/export.csv">CSVで書き出す</a>
+    <a class="v6-btn secondary" href="${reportUrl}" download="miruqa-report-${runId}.html">レポートをダウンロード(HTML)</a>
+    <div id="reportFrameBox" style="margin-top:14px"><p class="v6-sub"><span class="v6-loading"></span>レポートを読み込んでいます…</p></div>`;
+  loadReportFrame(reportUrl);
+}
+
+function loadReportFrame(reportUrl) {
+  const frameBox = document.getElementById("reportFrameBox");
+  fetch(reportUrl)
+    .then(res => {
+      if (!res.ok) { throw new Error("status " + res.status); }
+      frameBox.innerHTML = `<iframe class="report" src="${reportUrl}" style="width:100%; height:600px; border:1px solid var(--rule)"></iframe>`;
+    })
+    .catch(() => {
+      frameBox.innerHTML = `<div class="v6-error">レポートを取得できませんでした。再試行してください。
+        <button type="button" class="v6-btn secondary" style="margin-left:10px" onclick="loadReportFrame('${reportUrl}')">再試行</button></div>`;
+    });
 }
 
 function poll() {
@@ -460,6 +552,9 @@ function poll() {
         }
         document.getElementById("stopBtn").style.display = TERMINAL_RUN_STATUSES.includes(run.status) ? "none" : "";
         document.getElementById("rerunBtn").style.display = TERMINAL_RUN_STATUSES.includes(run.status) ? "" : "none";
+        document.getElementById("resumeBtn").style.display = run.status === "paused" ? "" : "none";
+        document.getElementById("creditBalance").textContent =
+          (data.creditBalance === undefined || data.creditBalance === null) ? "-" : data.creditBalance;
         if (run.status === "queued") {
           document.getElementById("progressBox").style.display = "block";
           const ahead = run.queuedAheadCount || 0;
@@ -471,8 +566,9 @@ function poll() {
         }
         renderKpis(run);
         renderProgress(run);
-        renderBudgetBanner(run);
+        renderPauseBanner(run);
         renderApprovals(data.pendingApprovals);
+        renderDiff(data.previousDiff);
         renderFindings(run);
         renderCases(run);
         renderExploratory(run);

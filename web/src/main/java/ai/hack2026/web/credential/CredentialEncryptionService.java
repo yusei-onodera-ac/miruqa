@@ -13,7 +13,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 /** v0.7 P5: 対象サイトのテスト用アカウントのパスワードを、保管前に暗号化する
- * (設計上の仮定: 環境変数の固定鍵。KMS・ローテーションはロードマップ)。
+ * (docs/QUESTIONS.md #22⑤の仮定: 環境変数の固定鍵。KMS・ローテーションはロードマップ)。
  * AES/GCM/NoPadding(256bit鍵、96bit IV、認証タグ付き)。鍵は{@code CREDENTIAL_ENCRYPTION_KEY}
  * (Base64、32バイト)。未設定のときは、ワーカーの共有秘密(WORKER_SHARED_SECRET)と同じ方針で
  * fail-closed(保存・復号のどちらも例外にする。平文のまま保存してしまう事故を防ぐ)。 */

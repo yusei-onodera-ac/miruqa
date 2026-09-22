@@ -146,7 +146,7 @@ class DomainVerificationServiceTest {
 
     @Test
     void denylistedHostnameCannotStartVerification() {
-        // L-4(開発者からの指摘): 審査員・協賛企業のホスト名は、登録(所有確認の開始)自体を拒否する
+        // L-4(指揮官指摘): 審査員・協賛企業のホスト名は、登録(所有確認の開始)自体を拒否する
         Long orgId = freshOrgId();
         DomainSafetyChecker safetyChecker = new DomainSafetyChecker("cyberace.co.jp");
         HostnameDenylist denylist = new HostnameDenylist(".go.jp,.lg.jp", "cyberace.co.jp,orcarouter.ai");

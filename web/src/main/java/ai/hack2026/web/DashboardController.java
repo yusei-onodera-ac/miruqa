@@ -7,7 +7,6 @@ import ai.hack2026.web.execution.RunRecord;
 import ai.hack2026.web.execution.RunRecordRepository;
 import ai.hack2026.web.project.Project;
 import ai.hack2026.web.project.ProjectRepository;
-import ai.hack2026.web.usage.UsageService;
 import ai.hack2026.web.util.DisplayFormat;
 import ai.hack2026.web.worker.WorkerClient;
 import org.slf4j.Logger;
@@ -28,7 +27,7 @@ import java.util.Map;
  * ダッシュボード(v0.6 UIチェックポイント)。最近の実行・登録プロジェクト数・今月の実行回数・
  * 見つかった指摘の件数を表示する。数値は、実測できる範囲だけを出す(ダミーの数字・意味のない
  * グラフは出さない。第3a章)。組織単位のコスト集計はワーカー側に実装が無いため、今回は出さない
- * (次の課題として記録)。
+ * (docs/RESUME.mdに次の課題として記録)。
  */
 @Controller
 public class DashboardController {
@@ -40,7 +39,7 @@ public class DashboardController {
     private final RunRecordRepository runRecordRepository;
     private final DomainRepository domainRepository;
     private final WorkerClient workerClient;
-    private final UsageService usageService;
+    private final ai.hack2026.web.credit.CreditService creditService;
     private final String planName;
 
     public DashboardController(
@@ -48,13 +47,13 @@ public class DashboardController {
             RunRecordRepository runRecordRepository,
             DomainRepository domainRepository,
             WorkerClient workerClient,
-            UsageService usageService,
+            ai.hack2026.web.credit.CreditService creditService,
             @Value("${PLAN_NAME:スタンダード}") String planName) {
         this.projectRepository = projectRepository;
         this.runRecordRepository = runRecordRepository;
         this.domainRepository = domainRepository;
         this.workerClient = workerClient;
-        this.usageService = usageService;
+        this.creditService = creditService;
         this.planName = planName;
     }
 
@@ -79,7 +78,7 @@ public class DashboardController {
             try {
                 Map<String, Object> run = ai.hack2026.web.util.RunDisplay.resolve(workerClient, record);
                 run.put("startedAtDisplay", DisplayFormat.jst(run.get("startedAt")));
-                run.put("costDisplay", DisplayFormat.costOf(run));
+                run.put("costDisplay", DisplayFormat.creditsOf(run, creditService.getUsdToJpyRate(), creditService.getMarkupMultiplier()));
                 Object findings = run.get("findings");
                 if (findings instanceof List<?> list) {
                     totalFindings += list.size();
@@ -102,15 +101,11 @@ public class DashboardController {
         model.addAttribute("recentRuns", recentRuns);
         model.addAttribute("workerError", workerError);
 
-        // v0.7 P4(縮小): プラン名の表示と、上限に対する使用量の表示(強制自体は既存の
-        // UsageService.costCapRejectionReason()がPlanController.approve()等で行っている)。
+        // v0.7 P4(縮小)→v0.8第2章: プラン名とクレジット残高の表示。USDはユーザー向け画面に
+        // 出さない(組織の日次・月次のUSD上限は、内部の安全弁としてUsageServiceに残るのみ)。
         model.addAttribute("planName", planName);
-        model.addAttribute("costToday", usageService.orgCostToday(organizationId));
-        model.addAttribute("dailyLimit", usageService.getOrgDailyLimitUsd());
-        model.addAttribute("costThisMonth", usageService.orgCostThisMonth(organizationId));
-        model.addAttribute("monthlyLimit", usageService.getOrgMonthlyLimitUsd());
-        model.addAttribute("nearDailyLimit", usageService.isNearDailyLimit(organizationId));
-        model.addAttribute("nearMonthlyLimit", usageService.isNearMonthlyLimit(organizationId));
+        model.addAttribute("creditBalance", creditService.getBalance(organizationId));
+        model.addAttribute("creditMinBalanceToStart", creditService.getMinBalanceToStart());
         return "dashboard";
     }
 

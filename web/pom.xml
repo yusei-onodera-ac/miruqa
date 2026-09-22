@@ -11,7 +11,7 @@
 	<groupId>ai.hack2026</groupId>
 	<artifactId>web</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>miruqa-web</name>
+	<name>site-inspector-web</name>
 	<description/>
 	<url/>
 	<licenses>
@@ -51,7 +51,7 @@
 		</dependency>
 
 		<!-- v0.6: DB化(組織・プロジェクト・テナント分離)。H2ファイルモード(別プロセス管理が不要で、
-		     ハッカソン環境で確実に動くことを優先) -->
+		     ハッカソン環境で確実に動くことを優先。docs/QUESTIONS.md #22) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>

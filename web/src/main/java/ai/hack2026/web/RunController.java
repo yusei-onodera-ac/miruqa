@@ -2,10 +2,13 @@ package ai.hack2026.web;
 
 import ai.hack2026.web.audit.AuditService;
 import ai.hack2026.web.auth.AppUserPrincipal;
+import ai.hack2026.web.execution.PlanRecord;
+import ai.hack2026.web.execution.PlanRecordRepository;
 import ai.hack2026.web.execution.RunRecord;
 import ai.hack2026.web.execution.RunRecordRepository;
 import ai.hack2026.web.queue.JobQueueService;
 import ai.hack2026.web.usage.UsageService;
+import ai.hack2026.web.util.FindingFingerprint;
 import ai.hack2026.web.worker.WorkerApiException;
 import ai.hack2026.web.worker.WorkerClient;
 import ai.hack2026.web.worker.WorkerUnavailableException;
@@ -24,6 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -40,20 +44,26 @@ public class RunController {
     private final WorkerClient workerClient;
     private final AuditService auditService;
     private final RunRecordRepository runRecordRepository;
+    private final PlanRecordRepository planRecordRepository;
     private final JobQueueService jobQueueService;
     private final UsageService usageService;
+    private final ai.hack2026.web.credit.CreditService creditService;
 
     public RunController(
             WorkerClient workerClient,
             AuditService auditService,
             RunRecordRepository runRecordRepository,
+            PlanRecordRepository planRecordRepository,
             JobQueueService jobQueueService,
-            UsageService usageService) {
+            UsageService usageService,
+            ai.hack2026.web.credit.CreditService creditService) {
         this.workerClient = workerClient;
         this.auditService = auditService;
         this.runRecordRepository = runRecordRepository;
+        this.planRecordRepository = planRecordRepository;
         this.jobQueueService = jobQueueService;
         this.usageService = usageService;
+        this.creditService = creditService;
     }
 
     private RunRecord requireRunRecord(String runId, Long organizationId) {
@@ -61,10 +71,55 @@ public class RunController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "実行が見つかりません"));
     }
 
+    /** v0.8第4章: このRunの元になったPlanが「前回の結果を引き継いだ」ものであれば、前回のRunの
+     * findingsと突き合わせ、新規・修正済み・継続中に分けて返す(FindingFingerprintで同一視。
+     * organizationIdで絞り込んだリポジトリ経由のため、他組織のRunを比較対象にはできない)。
+     * 前回データが取れない場合はnull(呼び出し元は表示しないだけで、実行自体は落とさない)。 */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> computeDiffAgainstPrevious(RunRecord record, Map<String, Object> currentRun, Long organizationId) {
+        PlanRecord planRecord = planRecordRepository.findByPlanIdAndOrganizationId(record.getPlanId(), organizationId).orElse(null);
+        if (planRecord == null || planRecord.getCarriedOverFromRunId() == null) {
+            return null;
+        }
+        RunRecord previousRecord = runRecordRepository
+                .findByRunIdAndOrganizationId(planRecord.getCarriedOverFromRunId(), organizationId).orElse(null);
+        if (previousRecord == null || previousRecord.getWorkerRunId() == null) {
+            return null;
+        }
+        Map<String, Object> previousRun;
+        try {
+            previousRun = workerClient.getRun(previousRecord.getWorkerRunId());
+        } catch (WorkerApiException | WorkerUnavailableException e) {
+            return null;
+        }
+        List<Map<String, Object>> currentFindings = (List<Map<String, Object>>) currentRun.getOrDefault("findings", List.of());
+        List<Map<String, Object>> previousFindings = (List<Map<String, Object>>) previousRun.getOrDefault("findings", List.of());
+        Set<String> previousFingerprints = previousFindings.stream().map(FindingFingerprint::compute).collect(Collectors.toSet());
+        Set<String> currentFingerprints = currentFindings.stream().map(FindingFingerprint::compute).collect(Collectors.toSet());
+
+        List<Map<String, Object>> newFindings = currentFindings.stream()
+                .filter(f -> !previousFingerprints.contains(FindingFingerprint.compute(f))).toList();
+        List<Map<String, Object>> fixedFindings = previousFindings.stream()
+                .filter(f -> !currentFingerprints.contains(FindingFingerprint.compute(f))).toList();
+        List<Map<String, Object>> continuingFindings = currentFindings.stream()
+                .filter(f -> previousFingerprints.contains(FindingFingerprint.compute(f))).toList();
+
+        Map<String, Object> diff = new HashMap<>();
+        diff.put("previousRunId", previousRecord.getRunId());
+        diff.put("newFindings", newFindings);
+        diff.put("fixedFindings", fixedFindings);
+        diff.put("continuingFindings", continuingFindings);
+        return diff;
+    }
+
     @GetMapping("/runs/{runId}")
     public String show(@AuthenticationPrincipal AppUserPrincipal user, @PathVariable String runId, Model model) {
         requireRunRecord(runId, user.getOrganizationId());
         model.addAttribute("runId", runId);
+        // v0.8第2章: クレジットへの換算は、画面側(JS)でも同じ計算をできるよう定数を渡す
+        // (USDはユーザー向け画面に出さない。表示専用で、実際の消費計上はJobQueueServiceが行う)。
+        model.addAttribute("creditRate", creditService.getUsdToJpyRate());
+        model.addAttribute("creditMarkup", creditService.getMarkupMultiplier());
         return "run";
     }
 
@@ -75,6 +130,14 @@ public class RunController {
         RunRecord record = requireRunRecord(runId, user.getOrganizationId());
 
         if (!record.isDispatched()) {
+            if (record.isPaused()) {
+                // v0.8第6章: まだワーカーへ依頼していない段階で停止された(キュー待ちのまま)場合。
+                Map<String, Object> run = new HashMap<>();
+                run.put("status", "paused");
+                run.put("pauseReason", record.getPauseReason());
+                return Map.of("run", run, "pendingApprovals", List.of(),
+                        "creditBalance", creditService.getBalance(user.getOrganizationId()));
+            }
             // まだワーカーへ依頼していない(キューで待機中)。ワーカーへは問い合わせない。
             int position = jobQueueService.queuePositionOf(record);
             int ahead = Math.max(0, position - 1);
@@ -110,6 +173,14 @@ public class RunController {
         body.put("run", run);
         body.put("pendingApprovals", approvals);
         body.put("costBreakdown", cost);
+        // v0.8第2章: 既存のポーリングに、組織のクレジット残高を乗せる(実行中に減っていくのが
+        // 見えるようにする。実際の消費計上はJobQueueServiceの同期処理が行う。ここは表示専用)。
+        body.put("creditBalance", creditService.getBalance(user.getOrganizationId()));
+        // v0.8第4章: 「前回の結果を引き継いだ」実行なら、前回との差分(新規・修正済み・継続中)を乗せる。
+        Map<String, Object> diff = computeDiffAgainstPrevious(record, run, user.getOrganizationId());
+        if (diff != null) {
+            body.put("previousDiff", diff);
+        }
         return body;
     }
 
@@ -119,14 +190,33 @@ public class RunController {
     public String stop(@AuthenticationPrincipal AppUserPrincipal user, @PathVariable String runId) {
         RunRecord record = requireRunRecord(runId, user.getOrganizationId());
         if (!record.isDispatched()) {
-            record.setStatus(RunRecord.STATUS_CANCELLED);
+            // v0.8第6章: まだワーカーへ依頼していない(キュー待ち)場合も、失敗にせず
+            // 「中断(paused)」で確定する。再開は、単に(未実行のまま)キューへ戻すだけでよい。
+            record.setStatus(RunRecord.STATUS_PAUSED);
+            record.setPauseReason("user_stop");
             record.setFinishedAt(java.time.Instant.now());
             runRecordRepository.save(record);
-            usageService.recordIfAbsent(record);
         } else {
-            workerClient.cancelRun(record.getWorkerRunId());
+            workerClient.cancelRun(record.getWorkerRunId(), "user_stop");
         }
         auditService.record(user.getOrganizationId(), user.getUserId(), "run_stop_requested", "runId=" + runId);
+        return "redirect:/runs/" + runId;
+    }
+
+    /** v0.8第6章: 中断(paused)した実行を、完了済みの項目を再実行せず再開する。 */
+    @PostMapping("/runs/{runId}/resume")
+    public String resumeRun(@AuthenticationPrincipal AppUserPrincipal user, @PathVariable String runId) {
+        RunRecord record = requireRunRecord(runId, user.getOrganizationId());
+        if (!record.isPaused()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "再開できるのは、一時停止した実行のみです。");
+        }
+        if ("credit_exhausted".equals(record.getPauseReason()) && !creditService.hasMinimumBalance(user.getOrganizationId())) {
+            throw new ResponseStatusException(HttpStatus.PAYMENT_REQUIRED,
+                    "残高が不足しているため再開できません。チャージしてください(残高: "
+                            + creditService.getBalance(user.getOrganizationId()) + "クレジット)。");
+        }
+        jobQueueService.resume(record);
+        auditService.record(user.getOrganizationId(), user.getUserId(), "run_resume_requested", "runId=" + runId);
         return "redirect:/runs/" + runId;
     }
 

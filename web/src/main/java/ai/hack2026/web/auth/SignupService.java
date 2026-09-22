@@ -47,7 +47,7 @@ public class SignupService {
         if (userRepository.existsByEmail(email)) {
             throw new DuplicateEmailException(email);
         }
-        PasswordPolicy.validate(rawPassword);  // 8文字未満・よくある弱いパスワードは例外(開発者のレビュー対応)
+        PasswordPolicy.validate(rawPassword);  // 8文字未満・よくある弱いパスワードは例外(指揮官レビュー対応)
         User user = new User();
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(rawPassword));

@@ -18,7 +18,7 @@
 
     <table class="v6-table" th:if="${not #lists.isEmpty(runs)}">
       <thead>
-        <tr><th class="v6-nowrap">実行日時(JST)</th><th class="v6-nowrap">runId</th><th>対象</th><th class="v6-nowrap">Plan</th><th class="v6-nowrap">状態</th><th class="v6-nowrap">ステップ</th><th class="v6-nowrap">コスト(USD)</th></tr>
+        <tr><th class="v6-nowrap">実行日時(JST)</th><th class="v6-nowrap">runId</th><th>対象</th><th class="v6-nowrap">Plan</th><th class="v6-nowrap">状態</th><th class="v6-nowrap">ステップ</th><th class="v6-nowrap">消費クレジット</th></tr>
       </thead>
       <tbody>
         <tr th:each="r : ${runs}" th:data-href="@{'/runs/' + ${r.runId}}">

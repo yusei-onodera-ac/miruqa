@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * v0.6 P2(AC-U2、開発者からの指摘 2026-09-21): 状態を変えるすべてのPOSTエンドポイントに、CSRF保護が
+ * v0.6 P2(AC-U2、指揮官指摘 2026-09-21): 状態を変えるすべてのPOSTエンドポイントに、CSRF保護が
  * 実際にかかっていることを確認する。CSRFトークンなし→403、トークンあり→403にならないこと
  * (ビジネスロジック上の別の理由(400/404/503等)で拒否されるのは正常。CSRF自体が通ることだけを見る)。
  *

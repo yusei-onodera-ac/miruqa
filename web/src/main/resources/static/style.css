@@ -39,10 +39,11 @@
 .v6-panel { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--v6-radius); padding: 24px; }
 .v6-field { margin-bottom: 16px; }
 .v6-field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-.v6-field input, .v6-field select, .v6-field textarea {
+.v6-field input:not([type="checkbox"]):not([type="radio"]), .v6-field select, .v6-field textarea {
   width: 100%; padding: 8px 10px; border: 1px solid var(--rule-strong); border-radius: var(--v6-radius);
   font-size: 14px; font-family: inherit; background: var(--surface); color: var(--v6-ink);
 }
+.v6-field input[type="checkbox"], .v6-field input[type="radio"] { width: auto; flex-shrink: 0; }
 .v6-field input:focus, .v6-field select:focus, .v6-field textarea:focus {
   outline: 2px solid var(--v6-focus); outline-offset: 1px; border-color: var(--v6-focus);
 }
@@ -72,14 +73,14 @@
 .v6-table a:focus-visible, .v6-btn:focus-visible { outline: 2px solid var(--v6-primary); outline-offset: 2px; }
 .v6-empty { padding: 40px 20px; text-align: center; color: var(--v6-muted); border: 1px dashed var(--rule-strong); border-radius: var(--v6-radius); }
 /* 状態は色つきのピルではなく、小さな四角い印+文字 */
-.v6-mark { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; }
+.v6-mark { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; white-space: nowrap; }
 .v6-mark::before { content: "■"; font-size: 10px; }
 .v6-mark.pass { color: var(--v6-pass); }
 .v6-mark.fail { color: var(--v6-fail); }
 .v6-mark.review { color: var(--v6-review); }
 .v6-mark.info { color: var(--v6-info); }
-.v6-nav { display: flex; gap: 16px; border-bottom: 1px solid var(--rule); padding-bottom: 12px; margin-bottom: 24px; font-size: 13px; }
-.v6-nav a { color: var(--v6-muted); text-decoration: none; }
+.v6-nav { display: flex; gap: 16px; border-bottom: 1px solid var(--rule); padding-bottom: 12px; margin-bottom: 24px; font-size: 13px; flex-wrap: wrap; }
+.v6-nav a { color: var(--v6-muted); text-decoration: none; white-space: nowrap; flex-shrink: 0; }
 .v6-nav a.current, .v6-nav a:hover { color: var(--v6-ink); font-weight: 600; }
 /* タブ(第3a章: カードではなく罫線下線。.v6-navと詳細度を揃えて見た目を統一する) */
 .v6-tabs { display: flex; gap: 20px; border-bottom: 1px solid var(--rule); margin: 24px 0 0; font-size: 13px; }

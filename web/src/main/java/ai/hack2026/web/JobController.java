@@ -11,6 +11,8 @@ import ai.hack2026.web.domain.DomainRepository;
 import ai.hack2026.web.domain.DomainSafetyChecker;
 import ai.hack2026.web.execution.PlanRecord;
 import ai.hack2026.web.execution.PlanRecordRepository;
+import ai.hack2026.web.execution.RunRecord;
+import ai.hack2026.web.execution.RunRecordRepository;
 import ai.hack2026.web.execution.SpecRecord;
 import ai.hack2026.web.execution.SpecRecordRepository;
 import ai.hack2026.web.project.Project;
@@ -53,6 +55,7 @@ public class JobController {
     private final DomainRepository domainRepository;
     private final ProjectRepository projectRepository;
     private final PlanRecordRepository planRecordRepository;
+    private final RunRecordRepository runRecordRepository;
     private final SpecRecordRepository specRecordRepository;
     private final DomainSafetyChecker domainSafetyChecker;
     private final TestCredentialRepository testCredentialRepository;
@@ -64,6 +67,7 @@ public class JobController {
             DomainRepository domainRepository,
             ProjectRepository projectRepository,
             PlanRecordRepository planRecordRepository,
+            RunRecordRepository runRecordRepository,
             SpecRecordRepository specRecordRepository,
             DomainSafetyChecker domainSafetyChecker,
             TestCredentialRepository testCredentialRepository,
@@ -73,10 +77,23 @@ public class JobController {
         this.domainRepository = domainRepository;
         this.projectRepository = projectRepository;
         this.planRecordRepository = planRecordRepository;
+        this.runRecordRepository = runRecordRepository;
         this.specRecordRepository = specRecordRepository;
         this.domainSafetyChecker = domainSafetyChecker;
         this.testCredentialRepository = testCredentialRepository;
         this.credentialEncryptionService = credentialEncryptionService;
+    }
+
+    /** v0.8第4章: このプロジェクトの、引き継ぎ元にできる直近の実行(ディスパッチ済みで、
+     * 終了しているもの)。無ければnull(「前回データが無ければ従来どおり」)。組織スコープの
+     * リポジトリ経由のため、他組織の実行は対象にならない。 */
+    private RunRecord previousRunFor(Long projectId, Long organizationId) {
+        return runRecordRepository.findByProjectIdAndOrganizationIdOrderByCreatedAtDesc(projectId, organizationId)
+                .stream()
+                .filter(RunRecord::isDispatched)
+                .filter(RunRecord::isTerminal)
+                .findFirst()
+                .orElse(null);
     }
 
     /** v0.6 P3(前半): プロジェクトが無いと診断を開始できない(AC-L1は所有確認済みのプロジェクトを
@@ -97,6 +114,9 @@ public class JobController {
         model.addAttribute("projectId", project.getId());
         model.addAttribute("defaultUrl", project.getTargetUrl());
         model.addAttribute("projectKind", project.getKind());
+        // v0.8第4章: 前回の実行があるプロジェクトだけ、「前回の結果を引き継ぐ」の選択肢を出す。
+        RunRecord previousRun = previousRunFor(project.getId(), user.getOrganizationId());
+        model.addAttribute("hasPreviousRun", previousRun != null);
         return "index";
     }
 
@@ -108,7 +128,8 @@ public class JobController {
             @RequestParam(value = "domainConfirmation", defaultValue = "") String domainConfirmation,
             @RequestParam(value = "consentGiven", defaultValue = "false") boolean consentGiven,
             @RequestParam(value = "specFiles", required = false) List<MultipartFile> specFiles,
-            HttpServletRequest request) {
+            HttpServletRequest request,
+            @RequestParam(value = "carryOverPrevious", defaultValue = "false") boolean carryOverPrevious) {
         Project project = projectRepository.findByIdAndOrganizationId(projectId, user.getOrganizationId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "プロジェクトが見つかりません"));
         String hostname = hostnameOf(url);
@@ -172,7 +193,7 @@ public class JobController {
                 String specId = String.valueOf(spec.get("specId"));
                 specIds.add(specId);
 
-                // v0.6 P3(前半・開発者からの指摘): 仕様書も組織に紐付ける(IDORの是正)。
+                // v0.6 P3(前半・指揮官指摘): 仕様書も組織に紐付ける(IDORの是正)。
                 SpecRecord specRecord = new SpecRecord();
                 specRecord.setSpecId(specId);
                 specRecord.setProjectId(project.getId());
@@ -216,7 +237,24 @@ public class JobController {
             }
         }
 
-        Map<String, Object> plan = workerClient.createPlan(url, specIds, authorization, testAccount);
+        // v0.8第4章: 「前回の結果を引き継ぐ」。チェックボックスの値だけでなく、ここで改めて
+        // 組織スコープのリポジトリから直近の実行を引き直す(送信されたIDをそのまま信用しない。
+        // 他組織のPlan/Runを指定させない)。
+        String carryOverPlanId = null;
+        String carryOverRunId = null;
+        String carryOverWorkerRunId = null;
+        if (carryOverPrevious) {
+            RunRecord previousRun = previousRunFor(project.getId(), user.getOrganizationId());
+            if (previousRun != null) {
+                carryOverPlanId = previousRun.getPlanId();
+                // ワーカーは自分の内部runId(workerRunId)でしかrun.jsonを引けない。
+                // record.setCarriedOverFromRunId()の方はJava側runId(このリポジトリのキー)のまま。
+                carryOverRunId = previousRun.getRunId();
+                carryOverWorkerRunId = previousRun.getWorkerRunId();
+            }
+        }
+
+        Map<String, Object> plan = workerClient.createPlan(url, specIds, authorization, testAccount, carryOverPlanId, carryOverWorkerRunId);
         String planId = String.valueOf(plan.get("planId"));
 
         PlanRecord record = new PlanRecord();
@@ -224,6 +262,7 @@ public class JobController {
         record.setProjectId(project.getId());
         record.setOrganizationId(user.getOrganizationId());
         record.setCreatedBy(user.getUserId());
+        record.setCarriedOverFromRunId(carryOverRunId);
         planRecordRepository.save(record);
 
         return "redirect:/plans/" + planId;

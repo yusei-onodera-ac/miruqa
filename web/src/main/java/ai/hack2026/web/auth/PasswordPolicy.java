@@ -2,7 +2,7 @@ package ai.hack2026.web.auth;
 
 import java.util.Set;
 
-/** パスワード強度の最小限のチェック(v0.6 P1補修、開発者のレビュー対応)。
+/** パスワード強度の最小限のチェック(v0.6 P1補修、指揮官レビュー対応)。
  * 8文字以上、かつよくある弱いパスワードの拒否リストに一致しないこと。 */
 public final class PasswordPolicy {
 

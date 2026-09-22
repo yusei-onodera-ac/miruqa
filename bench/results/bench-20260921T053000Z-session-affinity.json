@@ -1,7 +1,7 @@
 {
  "benchId": "bench-20260921T053000Z-session-affinity",
  "kind": "session-affinity-on-off",
- "note": "orcarouter/site-inspectorのセッション固定(コンソール設定)ON/OFFの比較。同一の共有項目書(p-f6458088、10件)、config=named-routerのみ。OFFは判断16の実行(事後確認でOFFと判明)、ONは開発者が同日中にコンソールでONへ切り替えた直後に1回だけ実行(詳細はdocs/design-decisions.md判断22参照)。",
+ "note": "orcarouter/site-inspectorのセッション固定(コンソール設定)ON/OFFの比較。同一の共有項目書(p-f6458088、10件)、config=named-routerのみ。OFFは判断16の実行(事後確認でOFFと判明)、ONはおのゆーが同日中にコンソールでONへ切り替えた直後に1回だけ実行(詳細はdocs/design-decisions.md判断22参照)。",
  "off": {
   "runId": "run-5b4e3d17d7",
   "costUsdSettled": 0.375824,

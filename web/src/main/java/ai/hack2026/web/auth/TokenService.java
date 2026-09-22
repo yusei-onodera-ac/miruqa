@@ -10,7 +10,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Optional;
 
-/** メール確認・パスワード再設定のワンタイムトークン発行・検証(v0.6 P1補修、開発者のレビュー対応)。
+/** メール確認・パスワード再設定のワンタイムトークン発行・検証(v0.6 P1補修、指揮官レビュー対応)。
  * 平文トークンはDBに保存せず、SHA-256ハッシュだけを保存する(トークンはメール本文(模擬)にだけ載る)。 */
 @Service
 public class TokenService {

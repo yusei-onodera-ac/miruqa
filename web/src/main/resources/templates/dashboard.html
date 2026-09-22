@@ -13,22 +13,17 @@
     <p class="v6-sub">登録プロジェクトと、直近の実行状況の概要です。</p>
 
     <div class="v6-panel" style="margin-bottom:20px">
-      <p class="v6-title" style="font-size:15px">プラン・使用量</p>
+      <p class="v6-title" style="font-size:15px">プラン・クレジット残高</p>
       <table class="v6-table">
-        <thead><tr><th>プラン</th><th>本日の使用量</th><th>今月の使用量</th></tr></thead>
+        <thead><tr><th>プラン</th><th>クレジット残高</th><th></th></tr></thead>
         <tbody>
           <tr>
             <td th:text="${planName}"></td>
             <td class="v6-mono">
-              <span th:text="${'$' + #numbers.formatDecimal(costToday, 1, 4)}"></span>
-              <span class="v6-sub"> / $<span th:text="${#numbers.formatDecimal(dailyLimit, 1, 2)}"></span></span>
-              <span class="v6-mark review" th:if="${nearDailyLimit}">上限に近づいています</span>
+              <span th:text="${creditBalance} + 'cr'"></span>
+              <span class="v6-mark review" th:if="${creditBalance lt creditMinBalanceToStart}">残高が少なくなっています</span>
             </td>
-            <td class="v6-mono">
-              <span th:text="${'$' + #numbers.formatDecimal(costThisMonth, 1, 4)}"></span>
-              <span class="v6-sub"> / $<span th:text="${#numbers.formatDecimal(monthlyLimit, 1, 2)}"></span></span>
-              <span class="v6-mark review" th:if="${nearMonthlyLimit}">上限に近づいています</span>
-            </td>
+            <td><a th:href="@{/credits/charge}" class="v6-btn secondary">チャージ</a></td>
           </tr>
         </tbody>
       </table>

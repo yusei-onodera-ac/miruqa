@@ -1,4 +1,4 @@
-"""下見(SiteMap)とテスト項目書(TestCase)生成。
+"""下見(SiteMap)とテスト項目書(TestCase)生成(CHANGE-v0.5.md 第3〜4章)。
 
 流れ:
   1. recon_site(): 対象URLから同一ホスト内を巡回し、SiteMap(nodes/edges)を作る。
@@ -13,6 +13,7 @@
   3. build_plan(): 1・2をまとめてPlanを組み立て、runs/plans/<planId>/plan.jsonに保存する。
 """
 
+import copy
 import json
 import re
 import time
@@ -230,7 +231,7 @@ def recon_site(start_url, max_pages=None, mode=None, test_account=None):
                         pass
 
                     if cart_seeded:
-                        # v0.7 P6中核(開発者からの指摘、2026-09-22): カートに入れた直後、そのまま
+                        # v0.7 P6中核(指揮官指摘、2026-09-22): カートに入れた直後、そのまま
                         # カート→決済確認画面まで安全に1回ずつ進んで発見する。<a href>を辿るだけの
                         # 下見(BFS)だと、/cartが「まだ空のうち」に先に巡回されてしまうことがあり
                         # (このデモサイトは、カートに商品があるときだけ「次へ」リンクを表示するため)、
@@ -516,7 +517,7 @@ def adopt_test_cases(plan, accepted_ids):
 
 def _mask_title(title):
     """絶対条件7: LLMに送る前に個人情報をマスクする。ページの<title>は、対象サイトの実際の
-    表示内容(仕込みのダミー個人情報を含みうる)をそのまま含むため、
+    表示内容(仕込みのダミー個人情報を含みうる。CLAUDE.md第7章)をそのまま含むため、
     プロンプトに埋め込む直前でmask_text()を通す(保存済みのSiteMap自体は変更しない)。"""
     masked, _redactions = mask_text(title or "")
     return masked
@@ -548,7 +549,7 @@ def _macro_tool_for(perspective_id, text):
 
 
 def _scripted_test_cases_for_node(node):
-    """P6中核(開発者からの指摘、2026-09-22): 定型のP-SEC項目は、LLMの気まぐれ(生成するかどうか、
+    """P6中核(指揮官指摘、2026-09-22): 定型のP-SEC項目は、LLMの気まぐれ(生成するかどうか、
     どの観点を選ぶか)に任せず、画面種別(kind)から機械的に必ず生成する。bench 3回計測で、
     比較用Planにrapid_click/navigate_directを使う項目が1件も無かった(=偶然そのときのLLMが
     選ばなかっただけ)ことが、L4検出率が伸びない一因と判明したための対応。
@@ -667,7 +668,7 @@ def generate_test_cases(site_map, items_by_id, client=None, plan_id=None, mode=N
         if mode == "readonly":
             candidate_ids = [pid for pid in candidate_ids if pid in READONLY_ALLOWED_PERSPECTIVES]
 
-        # P6中核(開発者からの指摘): 定型のP-SEC項目は、LLMの気まぐれに頼らずコードで必ず生成する
+        # P6中核(指揮官指摘): 定型のP-SEC項目は、LLMの気まぐれに頼らずコードで必ず生成する
         # (モードC(readonly)では、needs_approval操作は対象外のため生成しない)。
         node_scripted_count = 0
         if mode != "readonly":
@@ -737,17 +738,82 @@ def generate_test_cases(site_map, items_by_id, client=None, plan_id=None, mode=N
     return test_cases, llm_calls
 
 
-def build_plan(url, spec_ids=None, client=None, plan_id=None, authorization=None, test_account=None):
+def _verdict_map_from_run(run_id):
+    """v0.8第4章: 指定したrunのtestResultsから、testCaseId -> verdict の対応を作る
+    (前回の結果の引き継ぎ表示用)。runが無い・読めない場合は空dict(呼び出し元は
+    「前回データが無ければ従来どおり」に倒す)。"""
+    if not run_id:
+        return {}
+    run_path = config.RUNS_DIR / run_id / "run.json"
+    if not run_path.exists():
+        return {}
+    try:
+        run = json.loads(run_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return {r.get("testCaseId"): r.get("verdict") for r in run.get("testResults", []) if r.get("testCaseId")}
+
+
+def _build_plan_from_carry_over(url, plan_id, authorization, spec_ids, previous_plan, carry_over_run_id):
+    """v0.8第4章: 前回のテスト項目(採用済み・origin=user含む)を持ち越し、下見・項目書生成を
+    やり直さない(LLM呼び出し0件・費用0)。各項目には、前回の結果(previousVerdict)を付ける。
+    サイトマップも前回のものをそのまま使う(第4章は「項目を持ち越す」ことが目的であり、
+    実行自体は毎回、実際の画面に対して行われるため、下見のやり直しは必須ではない)。"""
+    test_cases = copy.deepcopy(previous_plan.get("testCases", []))
+    verdict_by_id = _verdict_map_from_run(carry_over_run_id)
+    for tc in test_cases:
+        tc["previousVerdict"] = verdict_by_id.get(tc.get("id"), "not_run")
+        # enabled/approvedは前回の承認状態をそのまま引き継ぎ、画面のチェック初期状態にする
+        # (承認は今回も必ず取り直す。agent.server._approve_planが提出されたIDで上書きする)。
+
+    final_spec_ids = spec_ids or previous_plan.get("specIds", [])
+    plan = {
+        "planId": plan_id,
+        "target": url,
+        "status": "ready",
+        "note": f"前回の実行({carry_over_run_id or '不明'})の結果を引き継ぎました(項目書は下見・生成をやり直していません)。",
+        "siteMap": copy.deepcopy(previous_plan.get("siteMap", {"nodes": [], "edges": []})),
+        "perspectives": list(previous_plan.get("perspectives", [])),
+        "specIds": final_spec_ids,
+        "testCases": test_cases,
+        "estimate": {"cases": len(test_cases), "durationSec": None, "costUsd": None},
+        "coverageForecast": dict(previous_plan.get("coverageForecast", {"specItemsTotal": 0, "specItemsCovered": 0})),
+        "blockedRequestsDuringRecon": [],
+        "budgetStatus": {"exceeded": False, "reason": None},
+        "authorization": authorization,
+        "proposals": [],
+        "testCaseAddRequestCount": 0,
+        "userAddedCount": 0,
+        "carriedOverFromPlanId": previous_plan.get("planId"),
+        "carriedOverFromRunId": carry_over_run_id,
+    }
+    save_plan(plan)
+    return plan, []
+
+
+def build_plan(url, spec_ids=None, client=None, plan_id=None, authorization=None, test_account=None,
+                carry_over_plan_id=None, carry_over_run_id=None):
     """下見+テスト項目書生成をまとめて行い、Planを組み立てて保存する(時間がかかるため、
     呼び出し元(agent.server)は別スレッドで実行し、先に生成した plan_id を返す非同期の形にする)。
     authorization: Java層が組み立てた{host, verified, testEnvDeclared, consentId, grantedAt}
     (v0.6 P2 L-2)。省略時は空dict扱い(=能動テストは許可されない、安全側のデフォルト)。
     test_account: v0.7 P5({"username","password"})。recon_site()でのログインにだけ使い、
     plan(保存先はplan.json)には一切含めない(実行時だけ使う。呼び出し元も再送する必要がある)。
+    carry_over_plan_id: v0.8第4章。指定すると、そのPlanのテスト項目を持ち越し、下見・生成を
+    やり直さない(Planが見つからない、またはテスト項目が0件の場合は、通常どおり生成する。
+    「前回データが無ければ従来どおり」)。carry_over_run_id: 前回の結果(previousVerdict)の
+    根拠になるRun(省略可。無ければ全項目previousVerdict="not_run"扱い)。
     戻り値: (plan: dict, llm_calls: list[dict])。"""
     spec_ids = spec_ids or []
     plan_id = plan_id or f"p-{uuid.uuid4().hex[:8]}"
     authorization = authorization or {}
+
+    if carry_over_plan_id:
+        previous_plan = load_plan(carry_over_plan_id)
+        if previous_plan and previous_plan.get("testCases"):
+            return _build_plan_from_carry_over(url, plan_id, authorization, spec_ids, previous_plan, carry_over_run_id)
+        # 前回データが無ければ、下の通常経路(下見・生成)にそのまま続ける。
+
     save_plan(
         {
             "planId": plan_id,

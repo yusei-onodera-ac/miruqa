@@ -1,6 +1,6 @@
 """絶対条件7(LLMに送る前に個人情報をマスクする)の、testcase-gen(項目書生成)向けの確認。
 
-開発者(ピア経由)からの指摘: agent/planning.pyにmasking.*の呼び出しが見当たらず、下見結果の
+指揮官(ピア経由)指摘: agent/planning.pyにmasking.*の呼び出しが見当たらず、下見結果の
 ページタイトル・仕様項目の文章がマスクを通らずLLMに渡っていた。generate_test_cases()に
 _mask_title()/_format_spec_items()側でのマスクを追加したので、実際に送信内容(messages)に
 元のPIIが含まれないことを確認する。

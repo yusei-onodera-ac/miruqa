@@ -37,7 +37,7 @@ public class SecurityConfig {
         http
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/login", "/signup", "/verify-email", "/forgot-password", "/reset-password",
-                        "/style.css", "/favicon.ico", "/error", "/health").permitAll()
+                        "/style.css", "/favicon.ico", "/error", "/health", "/img/**").permitAll()
                 .anyRequest().authenticated())
             .formLogin(form -> form
                 .loginPage("/login")
@@ -49,7 +49,13 @@ public class SecurityConfig {
                 .permitAll())
             // CSRFは既定で有効(第8章・U-5)。フォームはThymeleafの th:action がトークンを自動付与する
             .sessionManagement(session -> session
-                .maximumSessions(5));
+                .maximumSessions(5))
+            // 指揮官バグ報告(2026-09-22)対応・根本原因: Spring Securityの既定のX-Frame-Optionsは
+            // DENYで、run.htmlが自分自身の/runs/{id}/reportをiframeで埋め込む機能を常に(一時的な
+            // 不調とは無関係に)ブロックしていた(実機で再現・確認)。他ドメインからの埋め込みは
+            // 引き続き拒否しつつ、同一オリジンのiframeだけ許可する。
+            .headers(headers -> headers
+                .frameOptions(frame -> frame.sameOrigin()));
         return http.build();
     }
 }

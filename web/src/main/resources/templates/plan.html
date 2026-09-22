@@ -23,6 +23,14 @@
 
     <div id="connError" class="v6-error" style="display:none"></div>
 
+    <!-- 指揮官バグ報告(2026-09-22)対応: 残高不足・利用上限で実行を開始できなかったときの案内。
+         このプラン(下見・項目書生成済み)から離れずに、チャージして続けられるようにする。 -->
+    <div class="v6-panel" th:if="${approveError}" style="border-color:var(--v6-fail); margin-bottom:16px">
+      <p class="v6-error" th:text="${approveError}"></p>
+      <a class="v6-btn" th:if="${approveChargeReturnTo}"
+         th:href="@{/credits/charge(returnTo=${approveChargeReturnTo})}">チャージへ</a>
+    </div>
+
     <div id="loadingBox" class="v6-panel">
       <p><span class="v6-loading"></span>サイトを下見し、テスト項目書を作っています…(仕様書がある場合は数分かかることがあります)</p>
     </div>
@@ -85,6 +93,7 @@
                 <th class="sortable v6-nowrap" data-key="id">項目ID</th>
                 <th class="sortable" data-key="perspective" style="min-width:10em">観点</th>
                 <th class="sortable col-risk v6-nowrap" data-key="risk">危険度</th>
+                <th class="v6-nowrap">前回の結果</th>
                 <th class="sortable col-target v6-nowrap" data-key="target">対象</th>
                 <th style="min-width:14em">タイトル</th>
                 <th class="col-precondition" style="max-width:10em">前提条件</th>
@@ -115,6 +124,14 @@ let sortDir = 1;
 
 function esc(s) {
   return (s ?? "").toString().replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+// v0.8第4章: 前回の結果を引き継いだPlanでは、各項目にpreviousVerdictが付く(無ければ「-」)。
+const PREVIOUS_VERDICT_LABELS = { pass: "合格", fail: "不合格", needs_review: "要確認", not_run: "前回未実施" };
+function previousVerdictBadge(verdict) {
+  if (!verdict) return '<span class="v6-sub">-</span>';
+  const cls = verdict === "pass" ? "pass" : verdict === "fail" ? "fail" : verdict === "needs_review" ? "review" : "info";
+  return `<span class="v6-mark ${cls}">${esc(PREVIOUS_VERDICT_LABELS[verdict] || verdict)}</span>`;
 }
 
 // 観点コードの日本語名(日本のQA現場の慣習で、コードと併記する。定義の正はagent/perspectives.py)
@@ -270,6 +287,7 @@ function drawRows() {
       <td class="v6-mono v6-nowrap">${esc(c.id)}</td>
       <td class="v6-mono">${esc(perspectiveLabel(c.perspective))}</td>
       <td class="col-risk v6-nowrap"><span class="v6-mark ${danger ? 'review' : 'info'}">${danger ? '要承認' : '通常'}</span></td>
+      <td class="v6-nowrap">${previousVerdictBadge(c.previousVerdict)}</td>
       <td class="col-target v6-mono v6-nowrap">${esc(c.target)}</td>
       <td>${esc(c.title)}</td>
       <td class="col-precondition">${esc(c.precondition) || "-"}</td>
@@ -278,7 +296,7 @@ function drawRows() {
       <td class="v6-nowrap"><span class="v6-mark info">未実施</span></td>
       <td class="v6-nowrap"><span class="v6-sub">-</span></td>
     </tr>`;
-  }).join("") || '<tr><td colspan="11" class="v6-empty">この観点の項目はありません。</td></tr>';
+  }).join("") || '<tr><td colspan="12" class="v6-empty">この観点の項目はありません。</td></tr>';
 }
 
 document.getElementById("filterPerspective").addEventListener("change", drawRows);

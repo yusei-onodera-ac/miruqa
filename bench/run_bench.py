@@ -10,7 +10,7 @@ Router／orcarouter/auto)を切り替えて実行し、検出率・誤検知・�
 
 コストの実測は agent.ledger(runs/ledger.jsonl)から取る。以前はRunの metrics.costUsd だけを見ており、
 これは実行フェーズ(exec/exploratory/charter)のみで、項目書生成(testcase-gen)や仕様書抽出
-(spec-extract)のコストが入っていなかった(2026-09-21発覚)。
+(spec-extract)のコストが入っていなかった(2026-09-21発覚。docs/QUESTIONS.md参照)。
 
 使い方:
     # demo-siteを起動しておく(TEST_MODE=1推奨。L4も比較する場合)
@@ -37,7 +37,7 @@ from urllib.parse import urlparse
 from agent import config, ledger, planning
 from agent.loop import execute_plan
 
-# デモサイトの仕込み(1〜14)を、report_findingのtitle/detailに含まれそうなキーワードで
+# CLAUDE.md第7章の仕込み(1〜14)を、report_findingのtitle/detailに含まれそうなキーワードで
 # 大まかに突き合わせる(自動採点はベストエフォート。厳密な正誤判定は人が最終確認すること)。
 GROUND_TRUTH = {
     1: ("誤字", ["送量無料", "誤字", "脱字"]),

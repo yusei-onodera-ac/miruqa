@@ -9,6 +9,14 @@ PY="${PYTHON:-python3}"
 [ -x .venv/bin/python ] && PY=".venv/bin/python"
 [ -f .env ] || { echo ".env がありません。.env.example をコピーして設定してください。" >&2; exit 1; }
 
+# .env はPython側(agent/config.pyのload_dotenv())は自動で読むが、Java層(mvn spring-boot:run)は
+# 読まない。ALLOWED_HOSTS・CREDENTIAL_ENCRYPTION_KEY等をJava側にも渡すため、ここでシェルの
+# 環境変数として読み込む(コメント行・空行は無視。値に空白を含む場合は考慮していない簡易実装)。
+set -a
+# shellcheck disable=SC1091
+source .env
+set +a
+
 # Web層とワーカーの共有の秘密は、起動のたびに作る（保存しない）。
 export WORKER_SHARED_SECRET="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 40)"
 export WORKER_BASE_URL="${WORKER_BASE_URL:-http://127.0.0.1:8770}"

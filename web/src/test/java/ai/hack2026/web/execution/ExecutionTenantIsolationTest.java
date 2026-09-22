@@ -103,7 +103,7 @@ class ExecutionTenantIsolationTest {
 
     @Test
     void otherOrgSpecIdIsNotAccessible() throws Exception {
-        // 開発者からの指摘(2026-09-21): GET /specs/{id}.json が組織の確認なしに誰でも取得できてしまう
+        // 指揮官指摘(2026-09-21): GET /specs/{id}.json が組織の確認なしに誰でも取得できてしまう
         // IDORがあった。SpecRecordでの是正を確認する。
         User ownerA = signupService.signUp("spec-tenant-a-" + System.nanoTime() + "@example.com", "password123", "組織A担当", "組織A");
         User ownerB = signupService.signUp("spec-tenant-b-" + System.nanoTime() + "@example.com", "password123", "組織B担当", "組織B");

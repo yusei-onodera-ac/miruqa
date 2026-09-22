@@ -8,7 +8,7 @@
 </head>
 <body class="v6">
   <div class="v6-shell narrow">
-    <p class="v6-title" style="font-family:var(--v6-mono)" th:text="${productName}">MiruQA</p>
+    <img src="/img/logo.png" th:alt="${productName}" style="height:32px;width:auto;display:block;margin-bottom:4px">
     <p class="v6-sub">新規登録(組織が自動的に作成されます)</p>
 
     <div class="v6-panel">
@@ -35,8 +35,8 @@
         </div>
         <div class="v6-field">
           <label style="display:flex; gap:8px; align-items:flex-start; font-weight:400">
-            <input type="checkbox" name="termsAccepted" value="true" required style="margin-top:3px">
-            <span>利用規約・プライバシーポリシー(下書き。【要法務確認】)に同意します。診断対象への
+            <input type="checkbox" name="termsAccepted" value="true" required style="margin-top:3px; flex-shrink:0">
+            <span style="flex:1; min-width:0">利用規約・プライバシーポリシー(下書き。【要法務確認】)に同意します。診断対象への
               テスト権限の確認は、実行のたびに別途求められます。</span>
           </label>
         </div>

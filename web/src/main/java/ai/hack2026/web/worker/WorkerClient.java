@@ -110,6 +110,16 @@ public class WorkerClient {
      * plan.jsonへ永続化されてしまう(実際に混入させて発見した不具合。修正済み)。testAccountは
      * ワーカー側でも保存されず、下見の巡回開始前のログイン試行にだけ使われる。 */
     public Map<String, Object> createPlan(String url, List<String> specIds, Map<String, Object> authorization, Map<String, Object> testAccount) {
+        return createPlan(url, specIds, authorization, testAccount, null, null);
+    }
+
+    /** v0.8第4章: carryOverPlanId/carryOverRunIdを指定すると、ワーカーは下見・項目書生成を
+     * やり直さず、前回のPlanのテスト項目をそのまま持ち越す(前回データが無ければ通常どおり
+     * 生成する)。組織スコープの確認(carryOverPlanIdが自組織のものであること)は、
+     * 呼び出し元(JobController)が行う。 */
+    public Map<String, Object> createPlan(
+            String url, List<String> specIds, Map<String, Object> authorization, Map<String, Object> testAccount,
+            String carryOverPlanId, String carryOverRunId) {
         Map<String, Object> body = new java.util.LinkedHashMap<>();
         body.put("url", url);
         body.put("specIds", specIds);
@@ -118,6 +128,10 @@ public class WorkerClient {
         }
         if (testAccount != null) {
             body.put("testAccount", testAccount);
+        }
+        if (carryOverPlanId != null) {
+            body.put("carryOverPlanId", carryOverPlanId);
+            body.put("carryOverRunId", carryOverRunId);
         }
         return post("/api/plans", body, MAP_TYPE);
     }
@@ -166,9 +180,21 @@ public class WorkerClient {
         return post("/api/runs", body, MAP_TYPE);
     }
 
-    /** v0.6 P2(緊急停止): 実行中のRunにキャンセルを要求する(協調的。即座には止まらない)。 */
+    /** v0.6 P2(緊急停止)→v0.8第6章: 実行中のRunに停止を要求する(協調的。即座には止まらない。
+     * "paused"=再開可能として終わる)。 */
     public Map<String, Object> cancelRun(String runId) {
         return post("/api/runs/" + runId + "/cancel", Map.of(), MAP_TYPE);
+    }
+
+    /** v0.8第6章: 理由つきの停止要求(残高不足等、Java層が能動的に止める場合)。 */
+    public Map<String, Object> cancelRun(String runId, String reason) {
+        return post("/api/runs/" + runId + "/cancel", Map.of("reason", reason), MAP_TYPE);
+    }
+
+    /** v0.8第6章: 中断(paused)した実行を、完了済みの項目を再実行せず再開する。 */
+    public Map<String, Object> resumeRun(String runId, Map<String, Object> testAccount) {
+        Map<String, Object> body = testAccount == null ? Map.of() : Map.of("testAccount", testAccount);
+        return post("/api/runs/" + runId + "/resume", body, MAP_TYPE);
     }
 
     public List<Map<String, Object>> listRuns() {

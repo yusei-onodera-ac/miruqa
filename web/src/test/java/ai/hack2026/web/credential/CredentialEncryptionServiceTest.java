@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-/** v0.7 P5: パスワードの暗号化保管(AES/GCM)。設計上の仮定(環境変数の固定鍵、
+/** v0.7 P5: パスワードの暗号化保管(AES/GCM)。docs/QUESTIONS.md #22⑤の仮定(環境変数の固定鍵、
  * KMS・ローテーションなし)どおり、鍵が未設定のときはfail-closedになることも確認する。 */
 class CredentialEncryptionServiceTest {
 

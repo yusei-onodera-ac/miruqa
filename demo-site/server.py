@@ -7,7 +7,7 @@
     TEST_MODE=1 python3 demo-site/server.py --port 8765   # L4テスト用の /__test/state を有効化
 
 このファイルには `# SEEDED FLAW #n` / `<!-- SEEDED FLAW #n -->` のコメントで、
-仕込み(1〜14)の該当箇所を示す。エージェントには見せない(点検対象コードなので当然渡さない)。
+CLAUDE.md 第7章の仕込み(1〜14)の該当箇所を示す。エージェントには見せない(点検対象コードなので当然渡さない)。
 """
 
 import argparse

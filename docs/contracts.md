@@ -1,23 +1,23 @@
 # データ契約（並行開発のためのインターフェース）
 
-このファイルが正。変更したら、ここに変更内容と理由を追記する。
+このファイルが正。変更したら、ここに変更内容と理由を追記する（`CLAUDE.md` 第6章・`docs/CHANGE-v0.5.md` 第4章は初期案）。
 
 ## v0.5での破壊的変更（重要・要周知）
 
-v0.5での設計変更（2026-09-21決定）により、**ペルソナ・ゴールを契約・API・UI・CLI・プロンプトから完全に削除**し、
-「仕様書取り込み → プラン → テスト項目書 → 承認 → 実行(項目書＋探索) → 結果」の工程に置き換えた。
+`docs/CHANGE-v0.5.md`（2026-09-21決定）により、**ペルソナ・ゴールを契約・API・UI・CLI・プロンプトから完全に削除**し、
+「仕様書取り込み → プラン → テスト項目書 → 承認 → 実行(項目書＋探索) → 結果」の工程に置き換えた（詳細はCHANGE本文）。
 
 - `Run` から `goal` / `persona` フィールドを削除。`mode: "inspect"|"l4"` を廃止し、`TestCase.risk`（`normal`/`needs_approval`）に統合。
 - `Finding` から `lens` / `testId` を削除し、`perspective`（P-…）・`origin`・`kind`・`specRef`・`expected`・`actual`・`testCaseId` を追加。
 - ワーカーAPIの `POST /api/runs` は **後方互換なしで置き換え**る（`{url,goal,persona,mode}` → `{planId}`）。旧形状のリクエスト(`planId`が無い)は `400 missing_fields` を返す(実装: `agent/server.py`)。
-- **この変更はJava層(`web/`)の `JobController`／`WorkerClient`／`index.html` を壊す。** 当初はワーカー側とJava層側を別担当に分ける想定だったが、Java層も引き続きワーカー担当がまとめて対応する方針に変わったため、実際にはワーカー側の対応と合わせてJava層(`web/`)側も追従済み。
+- **この変更はJava層(`web/`)の `JobController`／`WorkerClient`／`index.html` を壊す。** 影響は人（おのゆー）経由で `dev/web` セッションに伝える予定だったが、`docs/QUESTIONS.md` #8で「Java層もこのセッション(dev/worker)が引き続き担当する」と回答されたため、実際にはこのセッション自身がJava層(`web/`)側も追従済み(MW区切り、`docs/STATUS-web.md`参照)。
 - 旧形式の `runs/samples/*.json`（`goal`/`persona`/`mode`/`lens` を含む）は、リプレイ対象としては「旧形式」であることが分かるよう別ディレクトリ・別READMEに残す。新形式のサンプルを別途追加する。
 
-## v0.6での変更(2026-09-21〜。1組織=1顧客規模の販売可能なサービス化)
+## v0.6での変更(2026-09-21〜、`docs/CHANGE-v0.6.md`。1組織=1顧客規模の販売可能なサービス化)
 
 - **Java層(`web/`)がシステムの記録の正になる。** DB(H2ファイルモード、Flyway管理)に
   users/organizations/memberships/projects/audit_logsを追加(P1。`web/src/main/resources/db/migration/V1__init.sql`)。
-  0a章の規模のため、招待リンク・APIトークンのテーブルは作らない(設計上の割り切り)。
+  0a章の規模のため、招待リンク・APIトークンのテーブルは作らない(`docs/QUESTIONS.md` #22)。
 - **テナント分離(U-4)**: `Project`等の取得は必ず`organizationId`で絞り込む
   (`ProjectRepository.findByIdAndOrganizationId`のように、idだけで取得するメソッドを用意しない設計)。
   自動テスト`TenantIsolationTest`(AC-U1)で、他組織のプロジェクトIDを直接指定すると404になることを確認済み。
@@ -26,7 +26,7 @@ v0.5での設計変更（2026-09-21決定）により、**ペルソナ・ゴー�
   `WORKER_AUTH_DISABLED=1`を明示しない限り拒否される(無検査での後方互換動作は廃止)。
 - **既存の点検フロー(`JobController`/`PlanController`/`RunController`)は、まだProject/組織に
   紐付けていない**(ログインは必須になったが、Plan/Runの実データは引き続き`runs/`直下のJSONファイルの
-  まま)。この統合はP2以降で行う予定。
+  まま)。この統合はP2以降で行う予定(`docs/STATUS-web.md`に申し送り)。
 - 認証: サインアップ・ログイン・ログアウト(Spring Security、BCrypt)。ログイン試行5回失敗で15分ロック
   (U-5)。CSRF有効(既定)。メール認証・パスワード再設定は模擬送信(`outbox/`にファイル出力)だが、
   トークン自体は本物(SHA-256ハッシュ保存・ワンタイム・期限つき。P1補修、`AuthToken`/`TokenService`)。
@@ -160,7 +160,7 @@ v0.5での設計変更（2026-09-21決定）により、**ペルソナ・ゴー�
                  "detection": { }, "falsePositives": 0, "costUsd": 0, "durationSec": 0 } ] }
 ```
 
-- **判定の原則**（変更なし）: 二重注文などの合否は、**リクエスト数・状態確認・画面差分のコード判定**を主とし、LLMの感想だけで `confirmed` にしない。仕様との比較（文言・数値・挙動の一致）は、LLMが根拠（仕様項目ID＋実際の観測）を示したときだけ `fail`。根拠が弱い場合は `needs_review`。仕様書がない場合は原則 `needs_review` だが、500エラーや `/__test/state` の確認など**コード的に明確な根拠**が取れるものは `confirmed` にしてよい。
+- **判定の原則**（変更なし）: 二重注文などの合否は、**リクエスト数・状態確認・画面差分のコード判定**を主とし、LLMの感想だけで `confirmed` にしない。仕様との比較（文言・数値・挙動の一致）は、LLMが根拠（仕様項目ID＋実際の観測）を示したときだけ `fail`。根拠が弱い場合は `needs_review`。仕様書がない場合は原則 `needs_review` だが、500エラーや `/__test/state` の確認など**コード的に明確な根拠**が取れるものは `confirmed` にしてよい（`docs/QUESTIONS.md` #12）。
 
 ## ワーカーAPI（Java層との境界。ハッカソンで実装する）
 
@@ -200,7 +200,7 @@ Java層（`web/`）が、ワーカー（Python）を呼び出し、結果を読�
 
 ## 実装状況
 
-- **v0.4までの実装(2026-09-20時点)**: 上記の旧6エンドポイント(`POST/GET /api/runs`等)はすべて動作確認済み。`agent/server.py`参照。v0.5では、この上に `specs`/`plans`/`plans/{id}/approve` を追加し、`POST /api/runs` を新形状に置き換える。
+- **v0.4までの実装(2026-09-20時点)**: 上記の旧6エンドポイント(`POST/GET /api/runs`等)はすべて動作確認済み。`agent/server.py`参照。v0.5では、この上に `specs`/`plans`/`plans/{id}/approve` を追加し、`POST /api/runs` を新形状に置き換える(実装は `docs/STATUS.md` のv0.5節を参照)。
 - `GET /api/runs/{runId}` は `runs/<runId>/run.json` をそのまま返す(実行中でも各ステップ後の最新状態が読める)。承認は `threading.Event` で待つ実装(タイムアウト=`AGENT_MAX_DURATION_SEC`、既定600秒。タイムアウトすると既定拒否)。この仕組み自体はv0.5でも流用する。
 
 ## コスト台帳(`runs/ledger.jsonl`)と予算上限(2026-09-21追加。FR-28の記録漏れ修正)

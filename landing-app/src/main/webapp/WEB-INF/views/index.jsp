@@ -3,10 +3,10 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<title>MiruQA｜仕様書から、UIテストを作って、実行する。</title>
-<meta name="description" content="仕様書を読み、実際のブラウザで画面を操作する。UIテスト（E2E）を、テスト項目書の作成から、実施、不具合票まで。2026年10月末 提供開始予定。">
-<meta property="og:title" content="MiruQA｜仕様書から、UIテストを作って、実行する。">
-<meta property="og:description" content="仕様書を読み、実際のブラウザで画面を操作する。UIテスト（E2E）を、テスト項目書の作成から、実施、不具合票まで。">
+<title>MiruQA｜UIテストやE2Eテストを、格安に、安全に、爆速に。</title>
+<meta name="description" content="UIテストやE2Eテストを、格安に、安全に、爆速に。仕様書を読み、実際のブラウザで画面を操作する。テスト項目書の作成から、実施、不具合票まで。2026年10月末 提供開始予定。">
+<meta property="og:title" content="MiruQA｜UIテストやE2Eテストを、格安に、安全に、爆速に。">
+<meta property="og:description" content="仕様書を読み、実際のブラウザで画面を操作する。UIテスト（E2E）を、テスト項目書の作成から、実施、不具合票まで、格安に、安全に、爆速に行います。">
 <meta property="og:type" content="website">
 <link rel="canonical" href="https://miruqa.com/">
 <%@ include file="_head.jspf" %>
@@ -22,7 +22,8 @@
   <div class="wrap hero-grid">
     <div class="hero-copy">
       <p class="label">UIテスト・E2Eテスト　／　2026年10月末 提供開始予定</p>
-      <h1><span class="nb">AIが画面を操作し、</span><span class="nb">テストを実施する。</span></h1>
+      <h1><span class="nb">UIテストやE2Eテストを、</span><span class="nb">格安に、安全に、爆速に。</span></h1>
+      <p class="h1-sm">AIが画面を操作し、テストを実施する。</p>
       <p class="lead">実際のブラウザで画面を操作し、テスト項目書の作成から、実施、証拠つきの不具合票まで行います。人間のテスト担当と同じ手順を、そのまま自動にします。<b>仕様書があれば読み込み、なくても点検できます。</b></p>
       <div class="cta-row">
         <c:choose>
@@ -32,10 +33,10 @@
         <a class="btn btn-line" href="#flow">使い方を見る</a>
       </div>
       <ul class="facts">
-        <li>仕様書は、なくても点検できる</li>
-        <li>実施は、承認した項目だけ</li>
-        <li>判定は、コードで確かめた根拠つき</li>
-        <li>再現手順とスクリーンショットを添付</li>
+        <li>危険な操作は、承認した範囲だけ実施（安全）</li>
+        <li>判定は、コードで確かめた根拠つき（信頼できる判定）</li>
+        <li>実際のブラウザを、AIが自律的に操作</li>
+        <li>仕様書がなくても、低コストに点検を始められる</li>
       </ul>
     </div>
 
@@ -208,7 +209,7 @@
       <div class="safe reveal"><h3>操作を封じる</h3><p>危険な操作は、承認した範囲だけ。公開ページでは、送信・ログイン・能動テストを実行できません。回数と間隔にも上限があります。</p></div>
       <div class="safe reveal"><h3>データを守る</h3><p>AIに送る前に、個人情報らしい文字列をマスクします。スクリーンショットは、AIに送りません。</p></div>
       <div class="safe reveal"><h3>すべて記録する</h3><p>組織ごとにデータを分離し、操作は監査ログに記録します。AIの呼び出しの費用も、台帳に残ります。</p></div>
-      <div class="safe reveal"><h3>いつでも止める</h3><p>実行中でも、緊急停止できます。実行・日・組織ごとの費用の上限を超えると、AIの呼び出しを止めます。</p></div>
+      <div class="safe reveal"><h3>いつでも止める</h3><p>実行中でも、緊急停止できます。残高が不足すると、AIの呼び出しを一時停止し、部分結果を残します。チャージすると、続きから再開できます。組織単位の、日・月ごとの内部的な安全上限も備えています。</p></div>
     </div>
     <p class="fine">上流のAI事業者でのデータの扱いは、確認中です。実在の個人情報は、テスト環境に置かないでください。</p>
   </div>

@@ -1,4 +1,4 @@
-"""P6中核(開発者からの指摘、2026-09-22): 定型のP-SEC項目を、LLMの気まぐれに任せずコードで
+"""P6中核(指揮官指摘、2026-09-22): 定型のP-SEC項目を、LLMの気まぐれに任せずコードで
 必ず生成することの確認(agent/planning.py の _scripted_test_cases_for_node()・
 generate_test_cases()への組み込み)。
 

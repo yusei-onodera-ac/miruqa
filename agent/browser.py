@@ -1,5 +1,5 @@
 """ブラウザ操作(Playwright)。reference/agent-ai/usability_test.py の BrowserSession を移植し、
-移植方針に沿って強化したもの。
+CLAUDE.md 5b の移植マップに沿って強化したもの。
 
 強化点:
   (1) 許可外ホストへの遷移・リクエストを事前に遮断(page.route)。事後のgo_backはしない。
@@ -696,9 +696,9 @@ class BrowserSession:
         self._settle()
         return self._state()
 
-    # 絶対条件の「非破壊、無害なマーカー文字列のみ」を満たすため、special_charsは実行され得ない
+    # CLAUDE.md第2章5「無害なマーカー文字列のみ」を満たすため、special_charsは実行され得ない
     # 記号・引用符・バックスラッシュ・アンパサンド・改行・全角記号だけで構成する
-    # (開発者からの指摘、2026-09-22: 以前は<script>タグと実際のSQL攻撃文字列を含んでいた)。
+    # (指揮官指摘、2026-09-22: 以前は<script>タグと実際のSQL攻撃文字列を含んでいた)。
     ABNORMAL_TEXTS = {
         "empty": "",
         "huge": "あ" * 5000,

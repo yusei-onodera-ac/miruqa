@@ -3,7 +3,7 @@
 <header class="site-header" id="top">
   <div class="wrap bar">
     <a class="logo" href="${pageContext.request.contextPath}/" aria-label="MiruQA トップへ">
-      <img src="${pageContext.request.contextPath}/static/img/logo.png" alt="MiruQA — Autonomous Web QA Agent" width="150" height="46">
+      <img src="${pageContext.request.contextPath}/static/img/logo.png" alt="MiruQA — Autonomous Web QA Agent" width="156" height="46">
     </a>
     <nav class="gnav" aria-label="主要メニュー">
       <a href="${pageContext.request.contextPath}/#features">機能</a>

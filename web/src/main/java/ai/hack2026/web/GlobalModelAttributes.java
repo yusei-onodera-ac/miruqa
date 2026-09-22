@@ -1,6 +1,7 @@
 package ai.hack2026.web;
 
 import ai.hack2026.web.auth.AppUserPrincipal;
+import ai.hack2026.web.credit.CreditService;
 import ai.hack2026.web.worker.WorkerClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,12 +20,15 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 public class GlobalModelAttributes {
 
     private final WorkerClient workerClient;
+    private final CreditService creditService;
     private final String productName;
 
     public GlobalModelAttributes(
             WorkerClient workerClient,
+            CreditService creditService,
             @Value("${app.product-name:MiruQA}") String productName) {
         this.workerClient = workerClient;
+        this.creditService = creditService;
         this.productName = productName;
     }
 
@@ -49,5 +53,18 @@ public class GlobalModelAttributes {
     @ModelAttribute("currentUserEmail")
     public String currentUserEmail(@AuthenticationPrincipal AppUserPrincipal user) {
         return user == null ? null : user.getUsername();
+    }
+
+    /** v0.8第5章: ヘッダーの残高バッジ。USDは出さない(クレジットのみ)。未ログインではnull。 */
+    @ModelAttribute("headerCreditBalance")
+    public Long headerCreditBalance(@AuthenticationPrincipal AppUserPrincipal user) {
+        if (user == null) {
+            return null;
+        }
+        try {
+            return creditService.getBalance(user.getOrganizationId());
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

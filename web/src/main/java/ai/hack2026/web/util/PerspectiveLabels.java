@@ -4,7 +4,7 @@ import java.util.Map;
 
 /**
  * 観点コード(P-SEC等)の日本語名。日本のQA現場の慣習として、コードと日本語名を併記する
- * (開発者からの指摘、2026-09-21)。定義の正は agent/perspectives.py の PERSPECTIVES(label)。
+ * (指揮官指摘、2026-09-21)。定義の正は agent/perspectives.py の PERSPECTIVES(label)。
  * ここに追加したら、そちらとズレていないか確認すること。
  */
 public final class PerspectiveLabels {

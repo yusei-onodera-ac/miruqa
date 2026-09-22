@@ -7,7 +7,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** v0.6 P2(L-4、開発者からの指摘 2026-09-21): 審査員・協賛企業・政府機関等のホスト名の拒否リスト。 */
+/** v0.6 P2(L-4、指揮官指摘 2026-09-21): 審査員・協賛企業・政府機関等のホスト名の拒否リスト。 */
 class HostnameDenylistTest {
 
     private final HostnameDenylist denylist = new HostnameDenylist(".go.jp,.lg.jp", "cyberace.co.jp,orcarouter.ai");

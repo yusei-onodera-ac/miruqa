@@ -20,6 +20,7 @@ import org.mockito.Mockito;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -37,7 +38,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** v0.6 P2(L-3、開発者からの指摘): 同意なしでは実行が始まらないこと(JobController)。
+/** v0.6 P2(L-3、指揮官指摘): 同意なしでは実行が始まらないこと(JobController)。
  * v0.7(第1・1a・1b節): 対象の分類(ローカル/公開/遮断)とプロジェクトの種類(kind)の組み合わせで
  * 許可の内容が決まること。127.0.0.1:8765(デモサイト)はループバック=ローカル扱いになる点に注意
  * (v0.6まではこのホストも所有確認が必要だったが、v0.7ではローカル宣言に置き換わった)。
@@ -58,9 +59,15 @@ class JobControllerConsentTest {
     private final DomainSafetyChecker domainSafetyChecker = Mockito.mock(DomainSafetyChecker.class);
     private final TestCredentialRepository testCredentialRepository = Mockito.mock(TestCredentialRepository.class);
     private final CredentialEncryptionService credentialEncryptionService = Mockito.mock(CredentialEncryptionService.class);
+    private final ai.hack2026.web.execution.RunRecordRepository runRecordRepository =
+            Mockito.mock(ai.hack2026.web.execution.RunRecordRepository.class);
     private final JobController controller = new JobController(
             workerClient, consentService, domainRepository, projectRepository, planRecordRepository,
-            specRecordRepository, domainSafetyChecker, testCredentialRepository, credentialEncryptionService);
+            runRecordRepository, specRecordRepository, domainSafetyChecker, testCredentialRepository, credentialEncryptionService);
+
+    {
+        when(runRecordRepository.findByProjectIdAndOrganizationIdOrderByCreatedAtDesc(any(), any())).thenReturn(List.of());
+    }
     private final AppUserPrincipal user = new AppUserPrincipal(1L, "test@example.com", "hash", 2L, Role.OWNER, null);
 
     private Project devEnvProject;
@@ -82,10 +89,10 @@ class JobControllerConsentTest {
         when(projectRepository.findByIdAndOrganizationId(any(), any())).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                controller.create(user, PROJECT_ID, "http://" + LOCAL_HOST + "/", LOCAL_HOST, true, null, request));
+                controller.create(user, PROJECT_ID, "http://" + LOCAL_HOST + "/", LOCAL_HOST, true, null, request, false));
 
         assertEquals(404, ex.getStatusCode().value());
-        verify(workerClient, never()).createPlan(anyString(), anyList(), anyMap(), isNull());
+        verify(workerClient, never()).createPlan(anyString(), anyList(), anyMap(), isNull(), any(), any());
     }
 
     @Test
@@ -93,10 +100,10 @@ class JobControllerConsentTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                controller.create(user, PROJECT_ID, "http://" + LOCAL_HOST + "/", LOCAL_HOST, false, null, request));
+                controller.create(user, PROJECT_ID, "http://" + LOCAL_HOST + "/", LOCAL_HOST, false, null, request, false));
 
         assertEquals(400, ex.getStatusCode().value());
-        verify(workerClient, never()).createPlan(anyString(), anyList(), anyMap(), isNull());
+        verify(workerClient, never()).createPlan(anyString(), anyList(), anyMap(), isNull(), any(), any());
         verify(consentService, never()).recordPerExecutionConsent(any(), any(), anyString(), any());
     }
 
@@ -105,10 +112,10 @@ class JobControllerConsentTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                controller.create(user, PROJECT_ID, "http://" + LOCAL_HOST + "/", "not-the-right-host", true, null, request));
+                controller.create(user, PROJECT_ID, "http://" + LOCAL_HOST + "/", "not-the-right-host", true, null, request, false));
 
         assertEquals(400, ex.getStatusCode().value());
-        verify(workerClient, never()).createPlan(anyString(), anyList(), anyMap(), isNull());
+        verify(workerClient, never()).createPlan(anyString(), anyList(), anyMap(), isNull(), any(), any());
     }
 
     @Test
@@ -118,10 +125,10 @@ class JobControllerConsentTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                controller.create(user, PROJECT_ID, "http://169.254.169.254/", "169.254.169.254", true, null, request));
+                controller.create(user, PROJECT_ID, "http://169.254.169.254/", "169.254.169.254", true, null, request, false));
 
         assertEquals(403, ex.getStatusCode().value());
-        verify(workerClient, never()).createPlan(anyString(), anyList(), anyMap(), isNull());
+        verify(workerClient, never()).createPlan(anyString(), anyList(), anyMap(), isNull(), any(), any());
     }
 
     @Test
@@ -131,10 +138,10 @@ class JobControllerConsentTest {
         when(domainRepository.findByOrganizationIdAndHostname(any(), eq(LOCAL_HOST))).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                controller.create(user, PROJECT_ID, "http://" + LOCAL_HOST + "/", LOCAL_HOST, true, null, request));
+                controller.create(user, PROJECT_ID, "http://" + LOCAL_HOST + "/", LOCAL_HOST, true, null, request, false));
 
         assertEquals(403, ex.getStatusCode().value());
-        verify(workerClient, never()).createPlan(anyString(), anyList(), anyMap(), isNull());
+        verify(workerClient, never()).createPlan(anyString(), anyList(), anyMap(), isNull(), any(), any());
         verify(consentService, never()).recordPerExecutionConsent(any(), any(), anyString(), any());
     }
 
@@ -150,14 +157,76 @@ class JobControllerConsentTest {
         when(declaredDomain.isDiagnosisAllowed()).thenReturn(true);
         when(declaredDomain.isTestEnvironment()).thenReturn(false);
         when(domainRepository.findByOrganizationIdAndHostname(any(), eq(LOCAL_HOST))).thenReturn(Optional.of(declaredDomain));
-        when(workerClient.createPlan(anyString(), anyList(), anyMap(), isNull())).thenReturn(Map.of("planId", "p-1"));
+        when(workerClient.createPlan(anyString(), anyList(), anyMap(), isNull(), any(), any())).thenReturn(Map.of("planId", "p-1"));
 
-        String view = controller.create(user, PROJECT_ID, "http://" + LOCAL_HOST + "/", LOCAL_HOST, true, null, request);
+        String view = controller.create(user, PROJECT_ID, "http://" + LOCAL_HOST + "/", LOCAL_HOST, true, null, request, false);
 
         assertEquals("redirect:/plans/p-1", view);
         verify(consentService, times(1)).recordPerExecutionConsent(1L, 2L, LOCAL_HOST, request.getRemoteAddr());
-        verify(workerClient, times(1)).createPlan(anyString(), anyList(), anyMap(), isNull());
+        verify(workerClient, times(1)).createPlan(anyString(), anyList(), anyMap(), isNull(), any(), any());
         verify(planRecordRepository, times(1)).save(any());
+    }
+
+    @Test
+    void carryOverResolvesPreviousPlanAndRunFromOrgScopedRepositoryNotClientInput() {
+        // v0.8第4章: 「前回の結果を引き継ぐ」チェックがONのとき、直近の実行を
+        // (組織スコープのリポジトリから)改めて引き直すこと(送信された値をそのまま信用しない)。
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        Consent consent = Mockito.mock(Consent.class);
+        when(consent.getId()).thenReturn(42L);
+        when(consentService.recordPerExecutionConsent(anyLong(), anyLong(), anyString(), any())).thenReturn(consent);
+        Domain declaredDomain = Mockito.mock(Domain.class);
+        when(declaredDomain.getStatus()).thenReturn(Domain.STATUS_LOCAL_DECLARED);
+        when(declaredDomain.isDiagnosisAllowed()).thenReturn(true);
+        when(declaredDomain.isTestEnvironment()).thenReturn(false);
+        when(domainRepository.findByOrganizationIdAndHostname(any(), eq(LOCAL_HOST))).thenReturn(Optional.of(declaredDomain));
+
+        ai.hack2026.web.execution.RunRecord previousRun = Mockito.mock(ai.hack2026.web.execution.RunRecord.class);
+        when(previousRun.isDispatched()).thenReturn(true);
+        when(previousRun.isTerminal()).thenReturn(true);
+        when(previousRun.getPlanId()).thenReturn("p-previous");
+        when(previousRun.getRunId()).thenReturn("run-previous");
+        // Java側runId("run-previous")とワーカー側workerRunId("run-worker-previous")は別物
+        // (ワーカーはworkerRunIdでしかrun.jsonを引けない)。両方を別々の値でスタブし、
+        // createPlanにはworkerRunIdの方が渡ることを確認する。
+        when(previousRun.getWorkerRunId()).thenReturn("run-worker-previous");
+        when(runRecordRepository.findByProjectIdAndOrganizationIdOrderByCreatedAtDesc(PROJECT_ID, 2L))
+                .thenReturn(java.util.List.of(previousRun));
+        when(workerClient.createPlan(anyString(), anyList(), anyMap(), isNull(), eq("p-previous"), eq("run-worker-previous")))
+                .thenReturn(Map.of("planId", "p-new"));
+
+        String view = controller.create(user, PROJECT_ID, "http://" + LOCAL_HOST + "/", LOCAL_HOST, true, null, request, true);
+
+        assertEquals("redirect:/plans/p-new", view);
+        verify(workerClient, times(1)).createPlan(anyString(), anyList(), anyMap(), isNull(), eq("p-previous"), eq("run-worker-previous"));
+        org.mockito.ArgumentCaptor<ai.hack2026.web.execution.PlanRecord> captor =
+                org.mockito.ArgumentCaptor.forClass(ai.hack2026.web.execution.PlanRecord.class);
+        verify(planRecordRepository, times(1)).save(captor.capture());
+        assertEquals("run-previous", captor.getValue().getCarriedOverFromRunId());
+    }
+
+    @Test
+    void carryOverWithNoPreviousRunFallsBackToNormalPlanCreation() {
+        // 「前回データが無ければ従来どおり」: carryOverPrevious=trueでも、対象の実行が
+        // 無ければcarryOverの値はnullのまま通常のcreatePlanを呼ぶ。
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        Consent consent = Mockito.mock(Consent.class);
+        when(consent.getId()).thenReturn(42L);
+        when(consentService.recordPerExecutionConsent(anyLong(), anyLong(), anyString(), any())).thenReturn(consent);
+        Domain declaredDomain = Mockito.mock(Domain.class);
+        when(declaredDomain.getStatus()).thenReturn(Domain.STATUS_LOCAL_DECLARED);
+        when(declaredDomain.isDiagnosisAllowed()).thenReturn(true);
+        when(declaredDomain.isTestEnvironment()).thenReturn(false);
+        when(domainRepository.findByOrganizationIdAndHostname(any(), eq(LOCAL_HOST))).thenReturn(Optional.of(declaredDomain));
+        when(runRecordRepository.findByProjectIdAndOrganizationIdOrderByCreatedAtDesc(PROJECT_ID, 2L))
+                .thenReturn(java.util.List.of());
+        when(workerClient.createPlan(anyString(), anyList(), anyMap(), isNull(), isNull(), isNull()))
+                .thenReturn(Map.of("planId", "p-fresh"));
+
+        String view = controller.create(user, PROJECT_ID, "http://" + LOCAL_HOST + "/", LOCAL_HOST, true, null, request, true);
+
+        assertEquals("redirect:/plans/p-fresh", view);
+        verify(workerClient, times(1)).createPlan(anyString(), anyList(), anyMap(), isNull(), isNull(), isNull());
     }
 
     @Test
@@ -167,10 +236,10 @@ class JobControllerConsentTest {
         when(domainRepository.findByOrganizationIdAndHostname(any(), eq(PUBLIC_HOST))).thenReturn(Optional.empty());
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                controller.create(user, PROJECT_ID, "http://" + PUBLIC_HOST + "/", PUBLIC_HOST, true, null, request));
+                controller.create(user, PROJECT_ID, "http://" + PUBLIC_HOST + "/", PUBLIC_HOST, true, null, request, false));
 
         assertEquals(403, ex.getStatusCode().value());
-        verify(workerClient, never()).createPlan(anyString(), anyList(), anyMap(), isNull());
+        verify(workerClient, never()).createPlan(anyString(), anyList(), anyMap(), isNull(), any(), any());
     }
 
     @Test
@@ -184,12 +253,12 @@ class JobControllerConsentTest {
         when(verifiedDomain.isDiagnosisAllowed()).thenReturn(true);
         when(verifiedDomain.isTestEnvironment()).thenReturn(false);
         when(domainRepository.findByOrganizationIdAndHostname(any(), eq(PUBLIC_HOST))).thenReturn(Optional.of(verifiedDomain));
-        when(workerClient.createPlan(anyString(), anyList(), anyMap(), isNull())).thenReturn(Map.of("planId", "p-1"));
+        when(workerClient.createPlan(anyString(), anyList(), anyMap(), isNull(), any(), any())).thenReturn(Map.of("planId", "p-1"));
 
-        String view = controller.create(user, PROJECT_ID, "http://" + PUBLIC_HOST + "/", PUBLIC_HOST, true, null, request);
+        String view = controller.create(user, PROJECT_ID, "http://" + PUBLIC_HOST + "/", PUBLIC_HOST, true, null, request, false);
 
         assertEquals("redirect:/plans/p-1", view);
-        verify(workerClient, times(1)).createPlan(anyString(), anyList(), anyMap(), isNull());
+        verify(workerClient, times(1)).createPlan(anyString(), anyList(), anyMap(), isNull(), any(), any());
     }
 
     /** v0.7 P5(ログインが必要な画面の点検)の回帰テスト。実装中に一度、testAccountを
@@ -215,13 +284,14 @@ class JobControllerConsentTest {
         when(testCredentialRepository.findByProjectIdAndOrganizationId(PROJECT_ID, user.getOrganizationId()))
                 .thenReturn(Optional.of(credential));
         when(credentialEncryptionService.decrypt("cipher", "iv")).thenReturn("demo-pass-1");
-        when(workerClient.createPlan(anyString(), anyList(), any(), any())).thenReturn(Map.of("planId", "p-1"));
+        when(workerClient.createPlan(anyString(), anyList(), any(), any(), any(), any())).thenReturn(Map.of("planId", "p-1"));
 
-        controller.create(user, PROJECT_ID, "http://" + LOCAL_HOST + "/", LOCAL_HOST, true, null, request);
+        controller.create(user, PROJECT_ID, "http://" + LOCAL_HOST + "/", LOCAL_HOST, true, null, request, false);
 
         var authorizationCaptor = org.mockito.ArgumentCaptor.forClass(Map.class);
         var testAccountCaptor = org.mockito.ArgumentCaptor.forClass(Map.class);
-        verify(workerClient, times(1)).createPlan(anyString(), anyList(), authorizationCaptor.capture(), testAccountCaptor.capture());
+        verify(workerClient, times(1)).createPlan(
+                anyString(), anyList(), authorizationCaptor.capture(), testAccountCaptor.capture(), any(), any());
 
         assertEquals(Map.of("username", "alice@example.test", "password", "demo-pass-1"), testAccountCaptor.getValue());
         org.junit.jupiter.api.Assertions.assertFalse(authorizationCaptor.getValue().containsKey("testAccount"),
@@ -241,9 +311,9 @@ class JobControllerConsentTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
 
         ResponseStatusException ex = assertThrows(ResponseStatusException.class, () ->
-                controller.create(user, PROJECT_ID, "http://" + LOCAL_HOST + "/", LOCAL_HOST, true, null, request));
+                controller.create(user, PROJECT_ID, "http://" + LOCAL_HOST + "/", LOCAL_HOST, true, null, request, false));
 
         assertEquals(403, ex.getStatusCode().value());
-        verify(workerClient, never()).createPlan(anyString(), anyList(), anyMap(), isNull());
+        verify(workerClient, never()).createPlan(anyString(), anyList(), anyMap(), isNull(), any(), any());
     }
 }

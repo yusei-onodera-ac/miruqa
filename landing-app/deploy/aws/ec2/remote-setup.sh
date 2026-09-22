@@ -35,14 +35,13 @@ chown -R tomcat:tomcat "/opt/apache-tomcat-$TOMCAT_VERSION"
 echo "== 設定ファイル（秘密は、この端末の中で作る）=="
 mkdir -p /etc/miruqa
 if [ ! -f /etc/miruqa/env ]; then
-  ( umask 077   # 秘密のファイルだけ、厳しい権限で作る（他のファイルに、影響させない）
+  umask 077
   cat > /etc/miruqa/env <<ENV
 CONTACT_ENABLED=false
 SITE_URL=https://${DOMAIN}
 CSRF_SECRET=$(head -c 32 /dev/urandom | base64 | tr -d '=+/\n')
 IP_HASH_SALT=$(head -c 24 /dev/urandom | base64 | tr -d '=+/\n')
 ENV
-  )
 fi
 chmod 600 /etc/miruqa/env
 
@@ -90,9 +89,7 @@ fi
 setcap cap_net_bind_service=+ep /usr/local/bin/caddy
 id caddy >/dev/null 2>&1 || useradd -r -s /sbin/nologin -d /var/lib/caddy caddy
 mkdir -p /etc/caddy /var/lib/caddy /var/log/caddy
-chmod 755 /etc/caddy
 chown caddy:caddy /var/lib/caddy /var/log/caddy
-umask 022
 cat > /etc/caddy/Caddyfile <<CADDY
 ${DOMAIN} {
 	encode zstd gzip

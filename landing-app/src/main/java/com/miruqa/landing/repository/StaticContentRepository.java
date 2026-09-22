@@ -27,7 +27,7 @@ public class StaticContentRepository implements ContentRepository {
             new PainPoint("自動化したいけど、AIに任せるのは不安",
                 "実施する項目は、あなたが承認したものだけ。実行の根拠と、スクリーンショットの証拠が残ります。", "approve"),
             new PainPoint("画面が変わるたびに、テストが重い",
-                "承認済みの項目書を、そのまま再実行できます。テストの作り直しは、必要ありません。", "rerun"));
+                "前回のテスト項目と結果を引き継いで再実行できます。下見・項目書の作り直しは不要。新規に見つかった点・解消した点・引き続き残っている点を、差分で確認できます。", "rerun"));
     }
 
     @Override

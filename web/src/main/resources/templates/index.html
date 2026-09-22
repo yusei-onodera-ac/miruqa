@@ -44,9 +44,14 @@
       </div>
 
       <label style="display:flex; gap:8px; align-items:flex-start; margin:16px 0; font-size:13px">
-        <input type="checkbox" name="consentGiven" value="true" required style="margin-top:3px">
-        <span th:if="${projectKind == 'PUBLIC_READONLY'}">対象サイトの利用規約とrobots.txtを確認しました。または、対象の管理者から許可を得ています(【要法務確認】利用規約で自動アクセスが禁止されている場合の責任は、利用者にあります)。</span>
-        <span th:unless="${projectKind == 'PUBLIC_READONLY'}">私は、このドメインをテストする権限を持っています(【要法務確認】権限のない対象への実行は、法的責任を伴う可能性があります)。</span>
+        <input type="checkbox" name="consentGiven" value="true" required style="margin-top:3px; flex-shrink:0">
+        <span style="flex:1; min-width:0" th:if="${projectKind == 'PUBLIC_READONLY'}">対象サイトの利用規約とrobots.txtを確認しました。または、対象の管理者から許可を得ています(【要法務確認】利用規約で自動アクセスが禁止されている場合の責任は、利用者にあります)。</span>
+        <span style="flex:1; min-width:0" th:unless="${projectKind == 'PUBLIC_READONLY'}">私は、このドメインをテストする権限を持っています(【要法務確認】権限のない対象への実行は、法的責任を伴う可能性があります)。</span>
+      </label>
+
+      <label th:if="${hasPreviousRun}" style="display:flex; gap:8px; align-items:flex-start; margin:0 0 16px; font-size:13px">
+        <input type="checkbox" name="carryOverPrevious" value="true" style="margin-top:3px; flex-shrink:0">
+        <span style="flex:1; min-width:0">前回の結果を引き継ぐ(前回のテスト項目を持ち越し、各項目に前回の結果を表示します。下見・項目書の生成はやり直しません)</span>
       </label>
 
       <button class="v6-btn" type="submit" id="submitBtn">下見してプランを作る</button>

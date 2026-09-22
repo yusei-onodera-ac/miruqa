@@ -1,4 +1,4 @@
-"""v0.6 P2(L-2、開発者からの指摘 2026-09-21): P-SECゲート(agent/policy.pyのneeds_approval判定)の
+"""v0.6 P2(L-2、指揮官指摘 2026-09-21): P-SECゲート(agent/policy.pyのneeds_approval判定)の
 3条件(TEST_MODE・authorization.testEnvDeclared・testCaseApproved)を、実際のPlaywright+
 demo-siteに対して、LLM呼び出し0件(MACRO_CODE_FASTPATH)で検証する。
 

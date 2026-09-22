@@ -1,4 +1,4 @@
-"""v0.6 P2(L-2、開発方針): 危険度needs_approvalの能動的テスト操作は、
+"""v0.6 P2(L-2、指揮官の設計方針): 危険度needs_approvalの能動的テスト操作は、
 TEST_MODE かつ 対象ドメインがテスト環境として宣言済み(Java層のauthorization経由) かつ
 そのTestCase自体が承認済み、の3条件が揃って初めて許可されることを確認する。
 

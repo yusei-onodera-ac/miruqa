@@ -11,7 +11,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** v0.6 P1補修(開発者のレビュー対応): メール確認・パスワード再設定トークンの
+/** v0.6 P1補修(指揮官レビュー対応): メール確認・パスワード再設定トークンの
  * 期限切れ拒否・使用済み再利用拒否を確認する(TokenService)。 */
 @SpringBootTest
 @ActiveProfiles("test")

@@ -1,7 +1,7 @@
-"""v0.7(第1a節、開発者からの指摘): モードC(公開ページ・読み取り専用)の、実際のPlaywright+demo-site
+"""v0.7(第1a節、指揮官指摘): モードC(公開ページ・読み取り専用)の、実際のPlaywright+demo-site
 サブプロセスを使ったE2E確認。LLM呼び出しはなし(recon_site()はサイト巡回のみでLLMを呼ばない)。
 
-開発方針: 実在する第三者のサイトにはアクセスせず、自作デモサイトを
+指揮官指示: 実在する第三者のサイトにはアクセスせず、自作デモサイトを
 READONLY_TEST_PUBLIC_HOSTSでテスト専用の「公開ホスト」扱いにして検証する。
 
 実行: python -m unittest agent.tests.test_readonly_mode_e2e -v

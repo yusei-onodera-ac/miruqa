@@ -1,5 +1,5 @@
 -- v0.6 P1: 利用者管理の土台(組織・メンバー・プロジェクト・監査ログ)。
--- 第0a章の規模(1組織=1顧客)に合わせ、招待リンク・APIトークンのテーブルは作らない(設計上の割り切り)。
+-- 第0a章の規模(1組織=1顧客)に合わせ、招待リンク・APIトークンのテーブルは作らない(docs/QUESTIONS.md #22)。
 
 CREATE TABLE organizations (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,

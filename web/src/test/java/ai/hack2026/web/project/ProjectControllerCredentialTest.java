@@ -50,11 +50,12 @@ class ProjectControllerCredentialTest {
     private final PlanRecordRepository planRecordRepository = Mockito.mock(PlanRecordRepository.class);
     private final SpecRecordRepository specRecordRepository = Mockito.mock(SpecRecordRepository.class);
     private final FindingStatusRecordRepository findingStatusRecordRepository = Mockito.mock(FindingStatusRecordRepository.class);
+    private final ai.hack2026.web.credit.CreditService creditService = Mockito.mock(ai.hack2026.web.credit.CreditService.class);
     private final ProjectController controller = new ProjectController(
             projectRepository, auditService, domainRepository, domainVerificationService,
             runRecordRepository, workerClient, domainSafetyChecker,
             testCredentialRepository, credentialEncryptionService,
-            planRecordRepository, specRecordRepository, findingStatusRecordRepository);
+            planRecordRepository, specRecordRepository, findingStatusRecordRepository, creditService);
     private final AppUserPrincipal user = new AppUserPrincipal(1L, "test@example.com", "hash", ORG_ID, Role.OWNER, null);
 
     private Project stubProject() {

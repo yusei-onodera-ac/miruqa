@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
 import java.util.Map;
@@ -38,6 +39,7 @@ public class PlanController {
     private final SpecRecordRepository specRecordRepository;
     private final JobQueueService jobQueueService;
     private final UsageService usageService;
+    private final ai.hack2026.web.credit.CreditService creditService;
     private final AuditService auditService;
 
     public PlanController(
@@ -46,12 +48,14 @@ public class PlanController {
             SpecRecordRepository specRecordRepository,
             JobQueueService jobQueueService,
             UsageService usageService,
+            ai.hack2026.web.credit.CreditService creditService,
             AuditService auditService) {
         this.workerClient = workerClient;
         this.planRecordRepository = planRecordRepository;
         this.specRecordRepository = specRecordRepository;
         this.jobQueueService = jobQueueService;
         this.usageService = usageService;
+        this.creditService = creditService;
         this.auditService = auditService;
     }
 
@@ -75,7 +79,7 @@ public class PlanController {
     }
 
     /** 仕様トレーサビリティタブ用(結果画面がPlanと合わせて仕様項目のテキストを表示するために使う)。
-     * v0.6 P3(前半・開発者からの指摘): SpecRecordで組織に紐付け、他組織のspecIdは404にする
+     * v0.6 P3(前半・指揮官指摘): SpecRecordで組織に紐付け、他組織のspecIdは404にする
      * (組織の確認なしに任意のspecIdの中身を取得できてしまっていたIDORの是正)。 */
     @GetMapping(value = "/specs/{specId}.json", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
@@ -101,12 +105,27 @@ public class PlanController {
     public String approve(
             @AuthenticationPrincipal AppUserPrincipal user,
             @PathVariable String planId,
-            @RequestParam(value = "testCaseIds", required = false) List<String> testCaseIds) {
+            @RequestParam(value = "testCaseIds", required = false) List<String> testCaseIds,
+            RedirectAttributes redirectAttributes) {
         PlanRecord planRecord = requirePlanRecord(planId, user.getOrganizationId());
 
+        // 指揮官バグ報告(2026-09-22): 残高不足・上限到達を例外で終わらせると、下見・項目書生成
+        // 済みのプラン(planId)へ戻る手段が無く、ユーザーは「新規点検」からやり直すしかなくなり、
+        // 直前のLLM費用(下見・生成)が無駄になっていた。このプランへリダイレクトし、
+        // エラーをこの画面上に表示する(実行前のプランなので、費用をかけ直さず何度でも再試行できる)。
         String costRejection = usageService.costCapRejectionReason(user.getOrganizationId());
         if (costRejection != null) {
-            throw new ResponseStatusException(HttpStatus.PAYMENT_REQUIRED, costRejection);
+            redirectAttributes.addFlashAttribute("approveError", costRejection);
+            return "redirect:/plans/" + planId;
+        }
+        // v0.8第2章: 開始前に、残高が最低額未満なら開始させない(ユーザーに見える上限は残高だけ)。
+        if (!creditService.hasMinimumBalance(user.getOrganizationId())) {
+            redirectAttributes.addFlashAttribute("approveError",
+                    "残高が不足しているため、実行を開始できません(残高: " + creditService.getBalance(user.getOrganizationId())
+                            + "クレジット、必要な最低残高: " + creditService.getMinBalanceToStart() + "クレジット)。"
+                            + "チャージすると、このプランからそのまま実行できます。");
+            redirectAttributes.addFlashAttribute("approveChargeReturnTo", "/plans/" + planId);
+            return "redirect:/plans/" + planId;
         }
 
         workerClient.approvePlan(planId, testCaseIds == null ? List.of() : testCaseIds);

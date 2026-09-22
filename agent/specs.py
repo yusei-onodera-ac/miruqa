@@ -1,4 +1,4 @@
-"""仕様書取り込み: txt/md/docx/pdf を SpecItem に分解する。
+"""仕様書取り込み(CHANGE-v0.5.md 第5章): txt/md/docx/pdf を SpecItem に分解する。
 
 流れ:
   1. 形式ごとにテキストを取り出し、見出し(セクション)で分割する(コード側の処理。LLMに頼らない)。

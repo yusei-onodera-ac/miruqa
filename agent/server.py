@@ -24,7 +24,7 @@ from report.html import build_csv, build_report_html, load_run
 
 
 def verify_worker_auth(provided, expected):
-    """共有秘密の比較(定数時間比較。開発時のレビューで指摘)。純粋関数として切り出し、
+    """共有秘密の比較(定数時間比較。指揮官レビューで指摘)。純粋関数として切り出し、
     単体テストしやすくしている(agent/tests/test_worker_auth.py参照)。"""
     if not expected:
         return True  # WORKER_AUTH_DISABLED=1のときだけこの分岐に来る(呼び出し元で保証)
@@ -50,7 +50,8 @@ def _run_summary(run_data):
     }
 
 
-def _start_plan_build(url, spec_ids, authorization=None, test_account=None):
+def _start_plan_build(url, spec_ids, authorization=None, test_account=None,
+                       carry_over_plan_id=None, carry_over_run_id=None):
     netloc = urlparse(url).netloc
     mode = (authorization or {}).get("mode")
     if not config.is_host_allowed(netloc, mode=mode):
@@ -69,7 +70,10 @@ def _start_plan_build(url, spec_ids, authorization=None, test_account=None):
 
     def worker():
         try:
-            planning.build_plan(url, spec_ids=spec_ids, plan_id=plan_id, authorization=authorization, test_account=test_account)
+            planning.build_plan(
+                url, spec_ids=spec_ids, plan_id=plan_id, authorization=authorization, test_account=test_account,
+                carry_over_plan_id=carry_over_plan_id, carry_over_run_id=carry_over_run_id,
+            )
         except Exception as exc:  # 下見・生成の失敗でもプロセスは生きている(FR-30)
             print(f"[worker] plan {plan_id} failed: {exc!r}")
             failed = planning.load_plan(plan_id) or {"planId": plan_id, "target": url, "specIds": spec_ids}
@@ -122,14 +126,17 @@ def _approve_plan(plan_id, test_case_ids):
     return plan, None
 
 
-def _start_run(plan_id, test_account=None):
+def _start_run(plan_id, test_account=None, resume_run_id=None):
+    """resume_run_id: v0.8第6章。指定すると、その既存run(status=paused)を再開する
+    (新しいrunIdは発行しない。呼び出し元=Java層は、既存のrunIdを使い続けられる)。"""
     plan = planning.load_plan(plan_id)
     if not plan:
         return None, _error(404, "plan_not_found")
     if plan.get("status") != "approved":
         return None, _error(400, "plan_not_approved", f"項目書が承認されていません(status={plan.get('status')})")
 
-    run_id = f"run-{uuid.uuid4().hex[:10]}"
+    resume = bool(resume_run_id)
+    run_id = resume_run_id or f"run-{uuid.uuid4().hex[:10]}"
 
     def approval_resolver(action, verdict):
         appr_id = verdict.get("approvalId") or f"appr-{uuid.uuid4().hex[:10]}"
@@ -143,7 +150,7 @@ def _start_run(plan_id, test_account=None):
 
     def worker():
         try:
-            execute_plan(plan_id, run_id=run_id, approval_resolver=approval_resolver, test_account=test_account)
+            execute_plan(plan_id, run_id=run_id, approval_resolver=approval_resolver, test_account=test_account, resume=resume)
         except Exception as exc:  # ワーカースレッド自体が落ちてもプロセスは生きている(FR-30)
             print(f"[worker] run {run_id} failed: {exc!r}")
 
@@ -188,7 +195,7 @@ class Handler(BaseHTTPRequestHandler):
             return None
 
     def _check_auth(self):
-        """v0.6 P1/P2: Java層とワーカー間の共有秘密。フェイルクローズド(開発時のレビューで指摘):
+        """v0.6 P1/P2: Java層とワーカー間の共有秘密。フェイルクローズド(指揮官レビューで指摘):
         WORKER_SHARED_SECRETが空でも、WORKER_AUTH_DISABLED=1でなければmain()が起動自体を
         拒否するため、ここに到達する時点では認証は必ず有効になっている。一致しなければ401を返して
         Trueを返す(呼び出し元はこれ以降の処理を打ち切る)。比較は定数時間(verify_worker_auth)。"""
@@ -371,10 +378,17 @@ class Handler(BaseHTTPRequestHandler):
             # v0.7 P5: testAccountはauthorizationとは別の最上位フィールドにする(意図的な設計。
             # authorizationはPlanに保存されるが、testAccount(パスワードを含む)は保存しない)。
             test_account = body.get("testAccount")
+            # v0.8第4章: 前回の結果の引き継ぎ(任意)。carryOverPlanIdが指すPlanが組織スコープ内かは
+            # Java層が保証する(ワーカー自身は組織の概念を持たないため、呼び出し元を信頼する設計)。
+            carry_over_plan_id = body.get("carryOverPlanId")
+            carry_over_run_id = body.get("carryOverRunId")
             if not url:
                 status, err = _error(400, "missing_fields", "url は必須です")
                 return self._send_json(status, err)
-            plan_id, err = _start_plan_build(url, spec_ids, authorization=authorization, test_account=test_account)
+            plan_id, err = _start_plan_build(
+                url, spec_ids, authorization=authorization, test_account=test_account,
+                carry_over_plan_id=carry_over_plan_id, carry_over_run_id=carry_over_run_id,
+            )
             if err:
                 status, body = err
                 return self._send_json(status, body)
@@ -453,15 +467,39 @@ class Handler(BaseHTTPRequestHandler):
             return self._send_json(200, {"runId": run_id, "status": "queued"})
 
         if path.startswith("/api/runs/") and path.endswith("/cancel"):
-            # v0.6 P2(緊急停止): 協調的なキャンセル。次のステップ境界(TestCase間・探索ステップ間・
-            # LLM呼び出し前)で検出され、ブラウザを閉じてcancelledとして終了する(即座には止まらない)。
+            # v0.6 P2(緊急停止)→v0.8第6章(中断・再開): 協調的な停止要求。次のステップ境界
+            # (TestCase間・探索ステップ間・LLM呼び出し前)で検出され、ブラウザを閉じて
+            # "paused"(再開可能)として終了する(即座には止まらない)。呼び出し元(Java層)は、
+            # 本文に{"reason": "credit_exhausted"}等を付けられる(省略時はuser_stop=利用者操作)。
             run_id = path.split("/")[3] if len(path.split("/")) > 3 else ""
             run_dir = config.RUNS_DIR / run_id
             if not (run_dir / "run.json").exists():
                 status, body = _error(404, "run_not_found")
                 return self._send_json(status, body)
-            loop.request_cancel(run_id)
+            body = self._read_json() or {}
+            loop.request_cancel(run_id, reason=body.get("reason"))
             return self._send_json(200, {"runId": run_id, "status": "cancel_requested"})
+
+        if path.startswith("/api/runs/") and path.endswith("/resume"):
+            # v0.8第6章: 中断(paused)した実行を、完了済みのTestCase・探索は再実行せず、
+            # 続きから再開する。二重課金の防止(request_id冪等)はWeb層側のクレジット消費で担保する。
+            run_id = path.split("/")[3] if len(path.split("/")) > 3 else ""
+            run_dir = config.RUNS_DIR / run_id
+            run_json_path = run_dir / "run.json"
+            if not run_json_path.exists():
+                status, body = _error(404, "run_not_found")
+                return self._send_json(status, body)
+            existing = json.loads(run_json_path.read_text(encoding="utf-8"))
+            if existing.get("status") != "paused":
+                status, body = _error(400, "not_paused", f"再開できるのはpausedの実行のみです(現在: {existing.get('status')})")
+                return self._send_json(status, body)
+            body = self._read_json() or {}
+            test_account = body.get("testAccount")
+            run_id, err = _start_run(existing.get("planId"), test_account=test_account, resume_run_id=run_id)
+            if err:
+                status, body = err
+                return self._send_json(status, body)
+            return self._send_json(200, {"runId": run_id, "status": "resuming"})
 
         if path.startswith("/api/approvals/"):
             appr_id = path.split("/")[3] if len(path.split("/")) > 3 else ""
@@ -505,17 +543,19 @@ def _cleanup_orphaned_state():
         except Exception:
             continue
         if run.get("status") in ("running", "waiting_approval", "queued"):
-            run["status"] = "interrupted"
-            run["summary"] = "ワーカーの再起動により中断されました。部分結果です。"
+            # v0.8第6章: ワーカー再起動も「中断(paused)」で確定し、失敗にしない(再開できる)。
+            run["status"] = "paused"
+            run["pauseReason"] = "worker_restart"
+            run["summary"] = "ワーカーの再起動のため、一時停止しました(部分結果)。再開すると、続きから実行できます。"
             run_path.write_text(json.dumps(run, ensure_ascii=False, indent=1), encoding="utf-8")
             cleaned_runs += 1
 
     if cleaned_plans or cleaned_runs:
-        print(f"[worker] 起動時の整理: 孤立したPlan {cleaned_plans}件・Run {cleaned_runs}件をinterrupted/failedに整理しました。")
+        print(f"[worker] 起動時の整理: 孤立したPlan {cleaned_plans}件をfailedに、孤立したRun {cleaned_runs}件をpausedに整理しました。")
 
 
 def main():
-    # v0.6 P2修正(開発時のレビュー対応): フェイルクローズド。共有秘密が空のまま無警告で起動しない
+    # v0.6 P2修正(指揮官レビュー): フェイルクローズド。共有秘密が空のまま無警告で起動しない
     if not config.WORKER_SHARED_SECRET:
         if not config.WORKER_AUTH_DISABLED:
             sys.exit(

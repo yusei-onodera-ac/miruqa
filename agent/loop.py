@@ -1,4 +1,4 @@
-"""実行エンジン: 承認済みのPlanを実行する。
+"""実行エンジン(CHANGE-v0.5.md 第2〜3a章): 承認済みのPlanを実行する。
 
 (A) 計画的テスト: 承認済み・有効なTestCaseを順に実行し、TestResultを作る。各TestCaseは、
     短いLLMツール呼び出しループ(このTestCaseの手順を満たすまで)で実行し、合否は
@@ -14,6 +14,7 @@
 - 非ストリーミング(絶対条件3)。詰まり検知・CAPTCHA/ログイン中断はbrowser.pyが検知する。
 """
 
+import copy
 import json
 import threading
 import time
@@ -32,16 +33,19 @@ from . import browser as browser_module
 from . import specs as specs_module
 from .browser import BROWSER_TOOLS, GATHER_JS, BrowserSession, PolicyDenied
 
-# v0.6 P2(緊急停止): 実行中止の要求を、プロセス内のメモリで保持する(協調的キャンセル)。
-# 次のステップ境界(TestCase間・探索ステップ間・LLM呼び出し前)で検出され、ブラウザを閉じて
-# cancelledとして終了する(即座には止まらない。単一プロセスのワーカーのため十分)。
-_cancelled_runs = set()
+# v0.6 P2(緊急停止)→v0.8(中断・再開): 実行中止の要求を、プロセス内のメモリで保持する
+# (協調的キャンセル)。次のステップ境界(TestCase間・探索ステップ間・LLM呼び出し前)で検出され、
+# ブラウザを閉じて終了する(即座には止まらない。単一プロセスのワーカーのため十分)。
+# v0.8: 終了時のstatusは"cancelled"(終端)ではなく"paused"(再開可能)にする。理由は
+# reasonに残す(既定はuser_stop=利用者による緊急停止。credit_exhausted=残高不足等、
+# Web層が能動的に理由つきで停止を要求する場合に使う)。
+_cancelled_runs = {}  # run_id -> reason
 _cancel_lock = threading.Lock()
 
 
-def request_cancel(run_id):
+def request_cancel(run_id, reason=None):
     with _cancel_lock:
-        _cancelled_runs.add(run_id)
+        _cancelled_runs[run_id] = reason or "user_stop"
 
 
 def is_cancel_requested(run_id):
@@ -49,9 +53,14 @@ def is_cancel_requested(run_id):
         return run_id in _cancelled_runs
 
 
+def get_cancel_reason(run_id):
+    with _cancel_lock:
+        return _cancelled_runs.get(run_id)
+
+
 def _clear_cancel_request(run_id):
     with _cancel_lock:
-        _cancelled_runs.discard(run_id)
+        _cancelled_runs.pop(run_id, None)
 
 
 FINISH_TESTCASE_TOOL = {
@@ -208,9 +217,18 @@ def _macro_hint(macro_name):
 class RunState:
     """docs/contracts.md の Run(v0.5)。各TestCase・各探索ステップの後に保存する。"""
 
-    def __init__(self, run_id, plan, run_dir):
+    def __init__(self, run_id, plan, run_dir, resume_from=None):
+        """resume_from: 既存のrun.json(dict)を渡すと、そこから再開する(v0.8第6章)。
+        testResults・findings・steps・累計コスト等を引き継ぎ、statusだけ"running"に戻す。"""
         self.run_id = run_id
         self.run_dir = run_dir
+        if resume_from:
+            self.data = copy.deepcopy(resume_from)
+            self.data["status"] = "running"
+            self.data["pauseReason"] = None
+            self.data["metrics"].setdefault("recoveries", {}).setdefault("resumed", 0)
+            self.data["metrics"]["recoveries"]["resumed"] += 1
+            return
         self.data = {
             "runId": run_id,
             "startedAt": _now_iso(),
@@ -233,6 +251,8 @@ class RunState:
             "findings": [],
             "compareTo": None,
             "budgetStatus": {"exceeded": False, "reason": None},
+            "exploratoryDone": False,
+            "pauseReason": None,
         }
 
     def add_step(self, phase, test_case_id, action, verdict, observation, llm_calls, perspective=None):
@@ -277,13 +297,30 @@ class RunState:
 
     def finish(self, status, started_ts):
         self.data["status"] = status
-        self.data["metrics"]["durationSec"] = round(time.time() - started_ts, 1)
+        # 再開をまたいだ累計時間にする(再開のたびにdurationSecを0から数え直さない)
+        self.data["metrics"]["durationSec"] = round(
+            self.data["metrics"].get("durationSec", 0) + (time.time() - started_ts), 1
+        )
 
     def save(self):
         path = self.run_dir / "run.json"
         tmp = self.run_dir / "run.json.tmp"
         tmp.write_text(json.dumps(self.data, ensure_ascii=False, indent=1), encoding="utf-8")
         tmp.replace(path)
+
+
+_PAUSE_REASON_JA = {
+    "user_stop": "利用者の操作により、",
+    "credit_exhausted": "残高不足のため、",
+    "llm_failure": "AI呼び出しの連続失敗(再試行・フォールバックを尽くした)のため、",
+    "worker_restart": "ワーカーの再起動のため、",
+    "timeout": "実行時間の上限に達したため、",
+    "network_failure": "通信の問題のため、",
+}
+
+
+def _pause_reason_ja(reason):
+    return _PAUSE_REASON_JA.get(reason, "")
 
 
 def _first_detail_url(plan):
@@ -619,7 +656,7 @@ def _run_exploratory(sess, impls, client, run, plan, items_by_id, base_url, last
     actions_taken = 0
     for _ in range(config.EXPLORATORY_MAX_STEPS):
         if is_cancel_requested(run.run_id):
-            run.data["exploratory"]["note"] = "緊急停止が要求されたため、探索を打ち切りました。"
+            run.data["exploratory"]["note"] = "停止が要求されたため、探索を一時停止しました(再開すると続きから実行できます)。"
             return True
         message, llm_call, degraded = llm.call_llm(client, messages=messages, purpose="exploratory", tools=tools, context=exploratory_context)
         if degraded or message is None:
@@ -802,7 +839,7 @@ def _compute_coverage(plan, items_by_id, test_results):
     }
 
 
-def execute_plan(plan_id, run_id=None, approval_resolver=None, on_event=None, test_account=None):
+def execute_plan(plan_id, run_id=None, approval_resolver=None, on_event=None, test_account=None, resume=False):
     """承認済みのPlanを実行する。呼び出し元: agent.cli / agent.server。
 
     approval_resolver(action, verdict) -> "approve"|"reject" : 実行中に想定外に発生する
@@ -811,6 +848,10 @@ def execute_plan(plan_id, run_id=None, approval_resolver=None, on_event=None, te
     on_event(event: dict) : 進行イベントの通知(Worker APIのポーリング用)。
     test_account: v0.7 P5({"username","password"})。実行開始直後にログインを試みるためだけに
         使い、run.jsonには一切保存しない(実行時だけ使う。呼び出し元が毎回渡す必要がある)。
+    resume: v0.8第6章。Trueかつ既存のrun_idの run.json が status="paused" のとき、その内容
+        (testResults・findings・累計コスト等)を引き継いで、完了済みのTestCase(verdictが
+        "not_run"以外)は再実行せず、続きから実行する。探索も、完了済み(exploratoryDone)なら
+        やり直さない。
     """
     plan = planning.load_plan(plan_id)
     if not plan:
@@ -825,10 +866,24 @@ def execute_plan(plan_id, run_id=None, approval_resolver=None, on_event=None, te
         raise ValueError(f"許可外ホスト({netloc})は診断対象にできません。ALLOWED_HOSTSを確認してください。")
     base_url = f"{urlparse(url).scheme}://{netloc}"
 
-    run_id = run_id or f"run-{uuid.uuid4().hex[:10]}"
+    resume_from = None
+    resume_completed_ids = set()
+    if resume and run_id:
+        existing_path = config.RUNS_DIR / run_id / "run.json"
+        if existing_path.exists():
+            existing = json.loads(existing_path.read_text(encoding="utf-8"))
+            if existing.get("status") == "paused":
+                resume_from = existing
+                resume_completed_ids = {
+                    r.get("testCaseId") for r in existing.get("testResults", []) if r.get("verdict") != "not_run"
+                }
+            else:
+                raise ValueError(f"この実行(status={existing.get('status')})は再開できません(paused以外)。")
+    if not run_id:
+        run_id = f"run-{uuid.uuid4().hex[:10]}"
     run_dir = config.RUNS_DIR / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
-    run = RunState(run_id, plan, run_dir)
+    run = RunState(run_id, plan, run_dir, resume_from=resume_from)
     started_ts = time.time()
 
     def emit(kind, **payload):
@@ -840,9 +895,11 @@ def execute_plan(plan_id, run_id=None, approval_resolver=None, on_event=None, te
 
     _specs_used, items_by_id = specs_module.load_specs(plan.get("specIds", []))
 
-    # ルールベースの横断チェック(FR-10の安全網。仕様書の有無に関わらず動く。AC-5)
-    for finding in rule_checks.run_all(base_url):
-        run.add_finding(finding)
+    if not resume_from:
+        # ルールベースの横断チェック(FR-10の安全網。仕様書の有無に関わらず動く。AC-5)。
+        # 再開時は、初回実行で既に追加済みのため二重に追加しない。
+        for finding in rule_checks.run_all(base_url):
+            run.add_finding(finding)
 
     client = llm.new_client()
 
@@ -902,9 +959,14 @@ def execute_plan(plan_id, run_id=None, approval_resolver=None, on_event=None, te
                 consecutive_llm_failures = 0
                 llm_outage = False
                 cancelled = False
+                pause_reason = None
+                skip_ids = set(resume_completed_ids or [])
                 for tc in plan.get("testCases", []):
+                    if tc.get("id") in skip_ids:
+                        continue
                     if is_cancel_requested(run_id):
                         cancelled = True
+                        pause_reason = get_cancel_reason(run_id)
                         break
                     if not (tc.get("enabled") and tc.get("approved")):
                         run.add_test_result(
@@ -927,15 +989,23 @@ def execute_plan(plan_id, run_id=None, approval_resolver=None, on_event=None, te
                     else:
                         consecutive_llm_failures = 0
                     if consecutive_llm_failures >= 3:
-                        # 3件連続でLLM呼び出しが失敗した場合、系統的な障害とみなし、残りのTestCaseは
-                        # 実行しない(1件ごとのLLM再試行(タイムアウト時は数十秒×複数回)を、承認済み
-                        # 項目の数だけ繰り返して待たせないため。FR-30)。
+                        # 3件連続でLLM呼び出しが失敗した場合、系統的な障害とみなし、既存の再試行・
+                        # フォールバックを尽くしてもなお回復しないと判断し、中断(paused)として終える
+                        # (v0.8第6章。自動再開はしない=意図しない消費を避ける。利用者の再開を待つ)。
                         llm_outage = True
+                        cancelled = True
+                        pause_reason = "llm_failure"
+                        break
 
                 if not cancelled and is_cancel_requested(run_id):
                     cancelled = True
-                if not cancelled:
+                    pause_reason = get_cancel_reason(run_id)
+                if not cancelled and not run.data.get("exploratoryDone"):
                     cancelled = _run_exploratory(sess, impls, client, run, plan, items_by_id, base_url, last_screenshot, emit)
+                    if cancelled:
+                        pause_reason = get_cancel_reason(run_id) or "user_stop"
+                    else:
+                        run.data["exploratoryDone"] = True
 
                 run.data["findings"] = _dedupe_findings(run.data["findings"], run.data["testResults"])
                 run.data["coverage"] = _compute_coverage(plan, items_by_id, run.data["testResults"])
@@ -943,14 +1013,16 @@ def execute_plan(plan_id, run_id=None, approval_resolver=None, on_event=None, te
                 run.data["blockedRequests"] = sess.blocked_requests
                 run.data["policyLog"] = sess.policy_log
                 run.data["mouseMetrics"] = {"clicks": sess.clicks, "distancePx": round(sess.mouse_distance), "trace": sess.trace}
-                run.data["outcome"] = "cancelled" if cancelled else "success"
+                run.data["outcome"] = "paused" if cancelled else "success"
+                run.data["pauseReason"] = pause_reason if cancelled else None
                 n_cases = len(plan.get("testCases", []))
                 n_results = len(run.data["testResults"])
                 n_susp = len(run.data["exploratory"]["suspicions"])
                 if cancelled:
                     run.data["summary"] = (
-                        f"緊急停止により、項目書{n_cases}件中{n_results}件までで打ち切りました"
-                        f"(部分結果)。探索で気になった点{n_susp}件を記録しました。"
+                        f"{_pause_reason_ja(pause_reason)}項目書{n_cases}件中{n_results}件までで"
+                        f"一時停止しました(部分結果)。探索で気になった点{n_susp}件を記録しました。"
+                        f"再開すると、続きから実行できます。"
                     )
                 else:
                     run.data["summary"] = f"項目書{n_cases}件・探索で気になった点{n_susp}件を記録しました。"
@@ -966,9 +1038,9 @@ def execute_plan(plan_id, run_id=None, approval_resolver=None, on_event=None, te
         _clear_cancel_request(run_id)
         return run
 
-    run.finish("cancelled" if cancelled else "completed", started_ts)
+    run.finish("paused" if cancelled else "completed", started_ts)
     run.save()
-    emit("cancelled" if cancelled else "completed")
+    emit("paused" if cancelled else "completed")
     _clear_cancel_request(run_id)
     return run
 

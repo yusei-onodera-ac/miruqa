@@ -1,4 +1,4 @@
--- v0.6 P3(前半・開発者からの指摘): 仕様書(specId)も組織に紐付ける。GET /specs/{specId}.jsonが
+-- v0.6 P3(前半・指揮官指摘): 仕様書(specId)も組織に紐付ける。GET /specs/{specId}.jsonが
 -- 組織の確認なしに誰でも任意のspecIdを取得できてしまっていた(IDOR)ことへの是正。
 
 CREATE TABLE spec_records (

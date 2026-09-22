@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 
 import java.time.Instant;
 
-/** v0.6 P3(前半・開発者からの指摘): ワーカーのSpec(specId)を、プロジェクト・組織に紐付けるメタデータ。
+/** v0.6 P3(前半・指揮官指摘): ワーカーのSpec(specId)を、プロジェクト・組織に紐付けるメタデータ。
  * GET /specs/{specId}.jsonが組織の確認なしに任意のspecIdを返せてしまっていた不具合(IDOR)の是正。 */
 @Entity
 @Table(name = "spec_records")

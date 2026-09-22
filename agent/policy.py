@@ -3,7 +3,7 @@
 OrcaRouter Firewall評価API(POST /api/v1/firewall/evaluate)が使えるならそれを使い、
 使えない/形式が未確認/失敗する場合は自前の PolicyGate にフォールバックする。
 どちらも同じ PolicyVerdict の形(docs/contracts.md)を返す。自前で代替していることは
-隠さず reason/source に残す(絶対条件6の要求どおり)。
+隠さず reason/source に残す(CLAUDE.md 第2章 6)。
 
 現時点(WP0未実施)ではFirewall評価APIのリクエスト/レスポンス形式が未確認のため、
 自前PolicyGateを主として動かし、ORCA_FIREWALL_KEY が設定されているときだけ

@@ -35,6 +35,11 @@ public class PlanRecord {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt = Instant.now();
 
+    /** v0.8第4章: 「前回の結果を引き継ぐ」を選んだときの、比較対象の前回Run(Java側の安定した
+     * runId)。設定されていれば、この実行の結果画面で前回との差分を表示する。 */
+    @Column(name = "carried_over_from_run_id", length = 64)
+    private String carriedOverFromRunId;
+
     public Long getId() { return id; }
     public String getPlanId() { return planId; }
     public void setPlanId(String planId) { this.planId = planId; }
@@ -46,4 +51,6 @@ public class PlanRecord {
     public void setCreatedBy(Long createdBy) { this.createdBy = createdBy; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public String getCarriedOverFromRunId() { return carriedOverFromRunId; }
+    public void setCarriedOverFromRunId(String carriedOverFromRunId) { this.carriedOverFromRunId = carriedOverFromRunId; }
 }

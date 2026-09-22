@@ -36,10 +36,13 @@ class RunControllerRerunTest {
     private final WorkerClient workerClient = Mockito.mock(WorkerClient.class);
     private final AuditService auditService = Mockito.mock(AuditService.class);
     private final RunRecordRepository runRecordRepository = Mockito.mock(RunRecordRepository.class);
+    private final ai.hack2026.web.execution.PlanRecordRepository planRecordRepository =
+            Mockito.mock(ai.hack2026.web.execution.PlanRecordRepository.class);
     private final JobQueueService jobQueueService = Mockito.mock(JobQueueService.class);
     private final UsageService usageService = Mockito.mock(UsageService.class);
+    private final ai.hack2026.web.credit.CreditService creditService = Mockito.mock(ai.hack2026.web.credit.CreditService.class);
     private final RunController controller = new RunController(
-            workerClient, auditService, runRecordRepository, jobQueueService, usageService);
+            workerClient, auditService, runRecordRepository, planRecordRepository, jobQueueService, usageService, creditService);
     private final AppUserPrincipal user = new AppUserPrincipal(1L, "test@example.com", "hash", ORG_ID, Role.OWNER, null);
 
     private RunRecord terminalRecord() {

@@ -29,10 +29,15 @@ public class HistoryController {
 
     private final WorkerClient workerClient;
     private final RunRecordRepository runRecordRepository;
+    private final ai.hack2026.web.credit.CreditService creditService;
 
-    public HistoryController(WorkerClient workerClient, RunRecordRepository runRecordRepository) {
+    public HistoryController(
+            WorkerClient workerClient,
+            RunRecordRepository runRecordRepository,
+            ai.hack2026.web.credit.CreditService creditService) {
         this.workerClient = workerClient;
         this.runRecordRepository = runRecordRepository;
+        this.creditService = creditService;
     }
 
     @GetMapping("/history")
@@ -45,7 +50,7 @@ public class HistoryController {
             try {
                 Map<String, Object> run = RunDisplay.resolve(workerClient, record);
                 run.put("startedAtDisplay", DisplayFormat.jst(run.get("startedAt")));
-                run.put("costDisplay", DisplayFormat.costOf(run));
+                run.put("costDisplay", DisplayFormat.creditsOf(run, creditService.getUsdToJpyRate(), creditService.getMarkupMultiplier()));
                 runs.add(run);
             } catch (RuntimeException e) {
                 // ワーカーが止まっている・応答しないときも、この画面は落ちない(評価③・AC-21と同じ方針)。

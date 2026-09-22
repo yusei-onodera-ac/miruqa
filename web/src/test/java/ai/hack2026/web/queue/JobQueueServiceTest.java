@@ -6,6 +6,7 @@ import ai.hack2026.web.auth.SignupService;
 import ai.hack2026.web.auth.User;
 import ai.hack2026.web.credential.CredentialEncryptionService;
 import ai.hack2026.web.credential.TestCredentialRepository;
+import ai.hack2026.web.credit.CreditService;
 import ai.hack2026.web.execution.RunRecord;
 import ai.hack2026.web.execution.RunRecordRepository;
 import ai.hack2026.web.project.Project;
@@ -32,7 +33,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * v0.6 P3(O-1・O-2): ジョブキューの同時実行数の上限(AC-O1、開発者の指示で組織あたり2件)と、
+ * v0.6 P3(O-1・O-2): ジョブキューの同時実行数の上限(AC-O1、指揮官指示で組織あたり2件)と、
  * 実行ごとのタイムアウト(O-2)を確認する。WorkerClientはMockitoでモックし、実LLM呼び出しは0件。
  * run_recordsのproject_id/organization_idは実テーブルへのFK制約があるため、
  * ExecutionTenantIsolationTestと同じ方針で、SignupService経由の実データを使う。
@@ -52,6 +53,7 @@ class JobQueueServiceTest {
 
     private WorkerClient workerClient;
     private UsageService usageService;
+    private CreditService creditService;
     private TestCredentialRepository testCredentialRepository;
     private CredentialEncryptionService credentialEncryptionService;
     private JobQueueService service;
@@ -62,9 +64,11 @@ class JobQueueServiceTest {
     void setUp() {
         workerClient = Mockito.mock(WorkerClient.class);
         usageService = Mockito.mock(UsageService.class);
+        creditService = Mockito.mock(CreditService.class);
+        when(creditService.hasPositiveBalance(org.mockito.ArgumentMatchers.any())).thenReturn(true);
         testCredentialRepository = Mockito.mock(TestCredentialRepository.class);
         credentialEncryptionService = Mockito.mock(CredentialEncryptionService.class);
-        service = new JobQueueService(runRecordRepository, workerClient, usageService,
+        service = new JobQueueService(runRecordRepository, workerClient, usageService, creditService,
                 testCredentialRepository, credentialEncryptionService, 2, 900);
 
         User owner = signupService.signUp(
@@ -174,15 +178,18 @@ class JobQueueServiceTest {
         record.setStartedAt(Instant.now().minusSeconds(120));
         runRecordRepository.save(record);
         JobQueueService shortTimeoutService = new JobQueueService(runRecordRepository, workerClient, usageService,
-                testCredentialRepository, credentialEncryptionService, 2, 60);
+                creditService, testCredentialRepository, credentialEncryptionService, 2, 60);
 
         shortTimeoutService.checkTimeouts();
 
         RunRecord after = reload(record);
-        assertEquals(RunRecord.STATUS_TIMEOUT, after.getStatus());
-        assertTrue(after.getErrorReason().contains("タイムアウト"));
+        // v0.8第6章: タイムアウトも「中断(paused)」で確定し、再開できるようにする(失敗にしない)。
+        // pausedの間は内部の原価集計(usageService)を確定しない(再開後の追加費用が漏れるため)。
+        assertEquals(RunRecord.STATUS_PAUSED, after.getStatus());
+        assertEquals("timeout", after.getPauseReason());
+        assertTrue(after.getErrorReason().contains("一時停止"));
         verify(workerClient, times(1)).cancelRun("run-1");
-        verify(usageService, times(1)).recordIfAbsent(argThatRunId(record.getRunId()));
+        verify(usageService, never()).recordIfAbsent(argThatRunId(record.getRunId()));
     }
 
     @Test

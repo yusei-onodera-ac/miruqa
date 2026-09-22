@@ -12,9 +12,9 @@
 - 即時コスト(costUsdInline)は同期記録。確定額(costUsdSettled, GET /v1/generation)は
   別スレッドで非同期・失敗許容(取れなくても記録は残る。呼び出し自体を失敗にしない)。
   既存行は書き換えず、"settlement"種別の行を追記して後から突き合わせる(追記のみでjsonlの単純さを保つ)。
-- 予算上限(LLM_BUDGET_PER_RUN_USD/LLM_BUDGET_PER_DAY_USD): 超えたらcall_llm側がAPIを呼ぶ前に
-  諦め、"budget_exceeded: ..." をerrorに残す(呼び出し元の既存の連続失敗検知がそのまま働き、
-  残り作業を打ち切って部分結果のまま終了する)。
+- 予算上限(v0.8以降はLLM_BUDGET_PER_DAY_USDのみ。ワーカープロセス全体の内部の安全弁):
+  超えたらcall_llm側がAPIを呼ぶ前に諦め、"budget_exceeded: ..." をerrorに残す(呼び出し元の
+  既存の連続失敗検知がそのまま働き、残り作業を打ち切って部分結果のまま終了する)。
 
 【重要・二重計上に注意】runs/ledger.jsonl を集計するときは、必ず merged_calls()/aggregate() を
 経由すること。1回のLLM呼び出しにつき、"call"種別の行(即時コスト)と、後から追記される
@@ -137,24 +137,19 @@ def _effective_cost(call):
     return settled if settled is not None else (call.get("costUsdInline") or 0.0)
 
 
-def _scope_key(d):
-    d = d or {}
-    return d.get("runId") or d.get("planId") or d.get("specId") or "adhoc"
-
-
 def check_budget(context):
     """予算上限を超えていないか確認する。戻り値: (ok: bool, reason: str|None)。
-    超過していれば、呼び出し元(agent.llm.call_llm)はAPIを呼ばずに即座に諦める(FR-30: 穏やかに終了)。"""
-    calls = merged_calls()
-    scope = _scope_key(context)
-    scope_total = sum(_effective_cost(c) for c in calls if _scope_key(c) == scope)
-    if scope_total >= config.LLM_BUDGET_PER_RUN_USD:
-        return False, f"1件あたりの上限(${config.LLM_BUDGET_PER_RUN_USD:.2f})に達しました(現在 ${scope_total:.4f})"
+    超過していれば、呼び出し元(agent.llm.call_llm)はAPIを呼ばずに即座に諦める(FR-30: 穏やかに終了)。
 
+    v0.8第2章: 「1件あたり$0.50の上限」は廃止した(ユーザーに見える上限は、Web層のクレジット
+    残高だけにする)。ここに残すのは、暴走防止のための内部の安全上限(ワーカープロセス全体の
+    1日あたりの原価上限)だけで、メッセージにUSDの金額は出さない(利用者に見える可能性が
+    あるため)。組織単位の日・月の原価上限は、Web層のUsageServiceが別途持つ。"""
+    calls = merged_calls()
     today = datetime.now(timezone.utc).date().isoformat()
     day_total = sum(_effective_cost(c) for c in calls if (c.get("ts") or "").startswith(today))
     if day_total >= config.LLM_BUDGET_PER_DAY_USD:
-        return False, f"1日あたりの上限(${config.LLM_BUDGET_PER_DAY_USD:.2f})に達しました(本日 ${day_total:.4f})"
+        return False, "利用上限に達しました"
 
     return True, None
 
